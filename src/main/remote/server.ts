@@ -204,12 +204,12 @@ async function stopRecording() {
   status.textContent = "Transcribing…";
   await done;
   const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-  const buffer = await blob.arrayBuffer();
+  const wav = await toWav(blob);
   try {
     const data = await api("/api/transcribe", {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream" },
-      body: buffer
+      body: wav
     });
     status.textContent = "";
     if (data.text) send(data.text);
@@ -219,6 +219,58 @@ async function stopRecording() {
 mic.addEventListener("pointerdown", (e) => { e.preventDefault(); startRecording(); });
 mic.addEventListener("pointerup", () => stopRecording());
 mic.addEventListener("pointercancel", () => stopRecording());
+
+/* The browser records WebM or Opus, which the recogniser cannot read.
+   It is decoded here and re-encoded as 16 kHz mono WAV, which it can. */
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const write = (offset, text) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+  write(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  write(8, "WAVE");
+  write(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+  return buffer;
+}
+
+async function toWav(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await ctx.decodeAudioData(arrayBuffer);
+  await ctx.close();
+
+  // Downsample to 16 kHz, which is what the recogniser expects.
+  const target = 16000;
+  const ratio = decoded.sampleRate / target;
+  const length = Math.floor(decoded.duration * target);
+  const mono = new Float32Array(length);
+  const channel = decoded.getChannelData(0);
+  for (let i = 0; i < length; i++) {
+    let sum = 0;
+    const start = Math.floor(i * ratio);
+    const end = Math.min(channel.length, Math.floor((i + 1) * ratio));
+    for (let k = start; k < end; k++) sum += channel[k];
+    mono[i] = end > start ? sum / (end - start) : 0;
+  }
+  return encodeWav(mono, target);
+}
 
 (async () => {
   try {
