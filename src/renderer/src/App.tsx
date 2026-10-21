@@ -145,6 +145,15 @@ export function App(): React.ReactElement {
     })
   }, [ready, send])
 
+  // Development aid: open a settings tab on launch, e.g.
+  // JARVIS_OPEN_SETTINGS=providers.
+  useEffect(() => {
+    if (!ready) return
+    void window.jarvis.app.openSettingsTab().then((tab) => {
+      if (tab) useJarvis.getState().openSettings(tab)
+    })
+  }, [ready])
+
   if (!ready) {
     return (
       <div className="empty" style={{ height: "100%" }}>

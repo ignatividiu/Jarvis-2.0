@@ -29,13 +29,22 @@ function binaryName(): string {
   return process.platform === "win32" ? "ollama.exe" : "ollama"
 }
 
-/** The downloaded runtime, if it was installed by the app. */
+/** The downloaded runtime, if the app installed one. */
 export function findOllamaBinary(): string | null {
   if (installDir && existsSync(installDir)) {
     const found = findBinary(installDir)
     if (found) return found
   }
-  // A system-wide installation is used when it is there.
+  return null
+}
+
+/**
+ * A runtime installed on the system, outside the app.
+ *
+ * It is only ever *detected*, never managed: the app does not start it and
+ * does not stop it, because it belongs to the user.
+ */
+export function findSystemOllama(): string | null {
   return which("ollama")
 }
 
@@ -200,19 +209,26 @@ export async function installOllama(
 /* ──────────────────────────  Server  ────────────────────────── */
 
 let server: ChildProcess | null = null
+/** True when the running server was started by this app. */
+let ownsServer = false
 
 /**
  * Start the runtime, unless it is already running.
  *
  * The server is detached so it can outlive the app — a model that has to be
- * reloaded every time JARVIS restarts is a poor experience.
+ * reloaded every time JARVIS restarts is a poor experience. A runtime the
+ * app did not start is never stopped by the app.
  */
 export async function startOllamaServer(): Promise<{ ok: boolean; message: string }> {
   if (await isOllamaRunning()) {
+    ownsServer = false
     return { ok: true, message: "The local model runtime is already running." }
   }
 
-  const bin = findOllamaBinary()
+  // The app only ever runs the copy it downloaded itself.
+  const own = findOllamaBinary()
+  const system = own ? null : findSystemOllama()
+  const bin = own ?? system
   if (!bin) {
     return { ok: false, message: "Ollama is not installed. Install it from the Local models tab." }
   }
@@ -232,6 +248,7 @@ export async function startOllamaServer(): Promise<{ ok: boolean; message: strin
     })
     child.unref()
     server = child
+    ownsServer = Boolean(own)
   } catch (err) {
     return { ok: false, message: `Could not start the local model runtime: ${String(err)}` }
   }
@@ -239,7 +256,12 @@ export async function startOllamaServer(): Promise<{ ok: boolean; message: strin
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 500))
     if (await isOllamaRunning()) {
-      return { ok: true, message: "The local model runtime is running." }
+      return {
+        ok: true,
+        message: ownsServer
+          ? "The local model runtime is running."
+          : "The system-wide Ollama runtime was started."
+      }
     }
   }
 
@@ -254,15 +276,19 @@ export async function startOllamaServer(): Promise<{ ok: boolean; message: strin
  * of the two happened.
  */
 export function stopOllamaServer(): { ok: boolean; message: string } {
-  if (server && !server.killed) {
+  if (server && !server.killed && ownsServer) {
     try {
       server.kill()
     } catch {
       /* ignore */
     }
     server = null
+    ownsServer = false
     return { ok: true, message: "The local model runtime was stopped." }
   }
+
+  server = null
+  ownsServer = false
   return {
     ok: true,
     message:

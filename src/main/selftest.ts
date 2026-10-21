@@ -60,6 +60,25 @@ export async function runSelfTest(prompt?: string): Promise<void> {
     return
   }
 
+  // "/ollama" downloads and unpacks the local model runtime. It is the
+  // recovery path on a machine where the runtime has gone missing.
+  if (prompt === "/ollama") {
+    log.info("installing the local model runtime — this is a large download…")
+    const { installOllama, startOllamaServer } = await import("./setup/ollama")
+    const result = await installOllama((p) => {
+      if (p.message) log.info(`  ${p.percent}% — ${p.message}`)
+    })
+    if (!result.ok) {
+      log.error(`the runtime could not be installed: ${result.message}`)
+      process.exitCode = 1
+      return
+    }
+    log.info("the runtime is installed")
+    const started = await startOllamaServer()
+    log.info(`the runtime: ${started.message}`)
+    return
+  }
+
   // "/piper" downloads and unpacks the offline speech engine, then speaks
   // with it. It is the only way to verify the archive extraction on a
   // machine that has never installed it.

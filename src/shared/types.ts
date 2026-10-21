@@ -606,6 +606,8 @@ export interface JarvisApi {
     openPath(path: string): Promise<void>
     /** Development aid — returns the prompt to send on launch, if any. */
     demoPrompt(): Promise<string>
+    /** Development aid — returns the settings tab to open on launch, if any. */
+    openSettingsTab(): Promise<string>
   }
   settings: {
     get(): Promise<Settings>

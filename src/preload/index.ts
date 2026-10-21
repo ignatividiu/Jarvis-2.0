@@ -81,7 +81,8 @@ const api: JarvisApi = {
     info: (): Promise<AppInfo> => ipcRenderer.invoke("app:info"),
     openExternal: (url: string) => ipcRenderer.invoke("app:openExternal", url),
     openPath: (path: string) => ipcRenderer.invoke("app:openPath", path),
-    demoPrompt: (): Promise<string> => ipcRenderer.invoke("app:demoPrompt")
+    demoPrompt: (): Promise<string> => ipcRenderer.invoke("app:demoPrompt"),
+    openSettingsTab: (): Promise<string> => ipcRenderer.invoke("app:openSettingsTab")
   },
 
   settings: {

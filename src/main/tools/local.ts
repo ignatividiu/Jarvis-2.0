@@ -1,7 +1,7 @@
 import type { CatalogueModel, LocalModel, LocalStatus, SetupProgress } from "@shared/types"
 import { createLogger } from "../logger"
 import { fetchJson } from "../net"
-import { findOllamaBinary, isOllamaRunning, ollamaVersion, OLLAMA_BASE } from "../setup/ollama"
+import { findOllamaBinary, findSystemOllama, isOllamaRunning, ollamaVersion, OLLAMA_BASE } from "../setup/ollama"
 
 const log = createLogger("local")
 
@@ -128,7 +128,7 @@ async function detectBackend(): Promise<{
 }> {
   // Ollama first.
   const ollamaUp = await isOllamaRunning()
-  const ollamaInstalled = Boolean(findOllamaBinary())
+  const ollamaInstalled = Boolean(findOllamaBinary() ?? findSystemOllama())
   if (ollamaUp || ollamaInstalled) {
     return {
       backend: "ollama",
@@ -136,7 +136,9 @@ async function detectBackend(): Promise<{
       available: ollamaUp,
       installed: ollamaInstalled,
       version: ollamaUp ? await ollamaVersion() : undefined,
-      error: ollamaUp ? undefined : "The Ollama runtime is installed but not running."
+      error: ollamaUp
+        ? undefined
+        : "The Ollama runtime is installed but not running — press Start to start it."
     }
   }
 

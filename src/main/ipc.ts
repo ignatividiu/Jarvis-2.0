@@ -90,6 +90,10 @@ export function registerIpc(): void {
   // exercised without typing. Set JARVIS_DEMO_PROMPT to use it.
   ipcMain.handle("app:demoPrompt", () => process.env.JARVIS_DEMO_PROMPT ?? "")
 
+  // Development aid: opens a settings tab on launch, e.g.
+  // JARVIS_OPEN_SETTINGS=providers.
+  ipcMain.handle("app:openSettingsTab", () => process.env.JARVIS_OPEN_SETTINGS ?? "")
+
   /* ── Settings ── */
   ipcMain.handle("settings:get", () => config.get())
   ipcMain.handle("settings:update", (_e, patch: Partial<Settings>) => config.update(patch ?? {}))

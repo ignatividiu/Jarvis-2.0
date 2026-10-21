@@ -307,7 +307,7 @@ The Local models tab controls the runtime directly:
 | **Start** | Starts the runtime and waits until it answers. |
 | **Restart** | Stops it and starts it again — the fix when a model stops responding. |
 | **Stop** | Stops the runtime. A runtime JARVIS did not start is left alone, and says so. |
-| **Install the local runtime** | Downloads and unpacks Ollama into the app's folder. |
+| **Install the local runtime** | Downloads and unpacks Ollama into the app's folder. Use it if the runtime has gone missing. |
 | **Download** | Fetches a model from the catalogue, with a progress bar. |
 | **Re-download** | Fetches the same model again — useful after it is corrupted. |
 | **Remove** | Deletes a model from the machine. |
@@ -316,6 +316,9 @@ The Local models tab controls the runtime directly:
 A catalogue of sensible models is offered, with their sizes and a note on what each is good for.
 The **4B** and **8B** models are comfortable on a laptop; the smaller ones are for CPU-only
 machines. Nothing leaves the machine.
+
+The runtime is only ever managed when JARVIS started it. A system-wide Ollama is detected and used,
+but it is never started or stopped behind your back.
 
 ---
 
