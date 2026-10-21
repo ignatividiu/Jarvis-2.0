@@ -220,16 +220,18 @@ async function testWakeWord() {
     ["jarvis, what is the time?", "what is the time?"],
     ["Jarvis what is the time", "what is the time"],
     ["hey jarvis open the door", "open the door"],
+    ["Hey Jarvis, open the door", "open the door"],
+    ["ok jarvis play some music", "play some music"],
     ["jarvus what time is it", "what time is it"],
     ["jervis play some music", "play some music"],
-    ["ok computer jarvis what time is it", "what time is it"],
     ["tell me about jarvis", null],
-    ["the weather is nice today", null]
+    ["the weather is nice today", null],
+    ["hey how are you doing today", null]
   ]
 
   let ok = true
   for (const [input, expected] of cases) {
-    const result = matchWakeWord(input, "jarvis")
+    const result = matchWakeWord(input, "Hey jarvis")
     if (expected === null) {
       if (result.matched) {
         fail(`“${input}” should not have matched`)
@@ -240,7 +242,7 @@ async function testWakeWord() {
       ok = false
     }
   }
-  if (ok) pass(`Wake word matching behaves correctly across ${cases.length} cases`)
+  if (ok) pass(`Trigger matching behaves correctly across ${cases.length} cases`)
   return ok
 }
 

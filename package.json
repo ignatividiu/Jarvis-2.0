@@ -23,6 +23,9 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:all": "npm run build && electron-builder --win --mac --linux",
+    "build:windows": "node scripts/build-windows.mjs",
+    "build:linux": "node scripts/build-linux.mjs",
+    "build:macos": "node scripts/build-macos.mjs",
     "postinstall": "node scripts/postinstall.mjs",
     "test:voice": "node scripts/diagnostics/voice.mjs",
     "test:backends": "node scripts/diagnostics/backends.mjs"

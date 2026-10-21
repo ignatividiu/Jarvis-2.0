@@ -2,14 +2,16 @@ import { useJarvis } from "../../state/store"
 import { ProvidersTab } from "./ProvidersTab"
 import { VoiceTab } from "./VoiceTab"
 import { AudioTab } from "./AudioTab"
+import { RemoteTab } from "./RemoteTab"
 import { LocalTab } from "./LocalTab"
 import { SearchTab } from "./SearchTab"
 import { GeneralTab } from "./GeneralTab"
 
 const TABS = [
-  { id: "providers", label: "Model providers", icon: "hub" },
   { id: "voice", label: "Voice", icon: "record_voice_over" },
+  { id: "providers", label: "Model providers", icon: "hub" },
   { id: "audio", label: "Microphone & speaker", icon: "settings_input_component" },
+  { id: "remote", label: "Remote access", icon: "phone_iphone" },
   { id: "local", label: "Local models", icon: "memory" },
   { id: "search", label: "Web search", icon: "travel_explore" },
   { id: "general", label: "Preferences", icon: "tune" }
@@ -50,9 +52,10 @@ export function SettingsDialog(): React.ReactElement | null {
           </nav>
 
           <div className="tab-pane">
-            {tab === "providers" && <ProvidersTab />}
             {tab === "voice" && <VoiceTab />}
+            {tab === "providers" && <ProvidersTab />}
             {tab === "audio" && <AudioTab />}
+            {tab === "remote" && <RemoteTab />}
             {tab === "local" && <LocalTab />}
             {tab === "search" && <SearchTab />}
             {tab === "general" && <GeneralTab />}

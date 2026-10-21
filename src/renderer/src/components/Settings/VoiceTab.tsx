@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useJarvis } from "../../state/store"
 import { audioEngine } from "../../audio/engine"
 import { speakWithBrowser } from "../../audio/speech"
+import { playMissCue, playWakeCue } from "../../audio/cue"
 import type { VoiceOption } from "@shared/types"
 
 const ENGINES = [
@@ -342,14 +343,17 @@ export function VoiceTab(): React.ReactElement | null {
 
       <div className="grid-2">
         <div className="field">
-          <label>Wake word</label>
+          <label>Trigger phrase</label>
           <input
             type="text"
             value={v.wakeWord}
-            placeholder="jarvis"
+            placeholder="Hey jarvis"
             onChange={(e) => setVoice({ wakeWord: e.target.value })}
           />
-          <span className="hint">Say it before your command. Near-misses such as “Jarvus” are understood too.</span>
+          <span className="hint">
+            The phrase that wakes JARVIS. It may be more than one word. The leading filler is optional, so
+            “Jarvis, what time is it” works too.
+          </span>
         </div>
 
         <div className="field">
@@ -362,6 +366,36 @@ export function VoiceTab(): React.ReactElement | null {
           />
           <span className="hint">Hold this key anywhere in the window to talk.</span>
         </div>
+      </div>
+
+      <div className="field">
+        <label>Confirmation sound</label>
+        <div className="row" style={{ gap: 10 }}>
+          <select
+            value={v.wakeCue ? "on" : "off"}
+            onChange={(e) => setVoice({ wakeCue: e.target.value === "on" })}
+            style={{ flex: 1 }}
+          >
+            <option value="on">On — a chime when the trigger is heard, a soft note when it is missed</option>
+            <option value="off">Off — no sound</option>
+          </select>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              void playWakeCue()
+              setTimeout(() => void playMissCue(), 700)
+            }}
+            title="Play the confirmation sound"
+          >
+            <span className="material-symbols-outlined">volume_up</span>
+            Test
+          </button>
+        </div>
+        <span className="hint">
+          Without a sound there is no way to tell whether the trigger was picked up, which is why it can feel
+          as though it is not working.
+        </span>
       </div>
 
       <div className="grid-2">

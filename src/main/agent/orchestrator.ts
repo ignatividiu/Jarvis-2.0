@@ -7,12 +7,53 @@ import { stripToolBlock } from "../providers/llm"
 import { fetchPage, searchWeb } from "../tools/websearch"
 import { localStatus, pullModel } from "../tools/local"
 import { opencodeWebSearch, runAgent } from "../tools/opencode"
+import { speak } from "../voice"
 
 const log = createLogger("orchestrator")
 
 /* ──────────────────────────  Tool definitions  ────────────────────────── */
 
+/**
+ * The capability groups, in priority order.
+ *
+ * Voice comes first: talking to the assistant is its primary purpose, so
+ * the speaking tools are offered before the general chat tools, and the
+ * coding agent is the last resort.
+ */
+export const TOOL_GROUPS = {
+  voice: ["speak", "set_delivery"],
+  chat: ["web_search", "fetch_url", "calculate", "system_info"],
+  code: ["code_task", "list_local_models", "install_local_model"]
+} as const
+
 export const TOOL_SPECS: ToolSpec[] = [
+  {
+    name: "speak",
+    description:
+      "Speak a reply out loud. Use it when the user asks to be told something, to have a message read out, " +
+      "or to repeat a short answer in a particular way. Plain replies are spoken automatically, so use this " +
+      "only when the wording or the delivery matters.",
+    parameters: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Exactly what should be said." },
+        style: { type: "string", description: "An optional delivery style, e.g. 'calm', 'formal' or 'excited'." }
+      },
+      required: ["text"]
+    }
+  },
+  {
+    name: "set_delivery",
+    description:
+      "Change how the assistant sounds from now on — for example 'speak more formally' or 'be more concise'.",
+    parameters: {
+      type: "object",
+      properties: {
+        instruction: { type: "string", description: "A short description of the new delivery." }
+      },
+      required: ["instruction"]
+    }
+  },
   {
     name: "web_search",
     description:
@@ -92,12 +133,15 @@ You can call tools. When you need a tool, reply with EXACTLY one fenced block an
 {"tool": "web_search", "arguments": {"query": "the search terms"}}
 \`\`\`
 
-Available tools:
-${TOOL_SPECS.map((t) => `- ${t.name}(${Object.keys((t.parameters.properties ?? {}) as object).join(", ")}) — ${t.description}`).join("\n")}
+Available tools, in priority order:
+${TOOL_GROUPS.voice.map((n) => `- ${n} (voice)`).join(", ")}
+${TOOL_GROUPS.chat.map((n) => `- ${n} (chat)`).join(", ")}
+${TOOL_GROUPS.code.map((n) => `- ${n} (code)`).join(", ")}
 
 Rules:
 - Emit the tool block INSTEAD of answering when a tool is needed.
 - Call exactly ONE tool per reply, then wait for its result.
+- Prefer a voice tool over a chat tool, and a chat tool over a code tool.
 - Never use web_search for arithmetic or for anything you can reason out — use calculate.
 - Never use calculate for facts — use web_search.
 - Never invent tool output. After a tool result is provided to you, use it.
@@ -123,6 +167,8 @@ interface ToolOutcome {
   summary: string
   /** Text handed back to the model. */
   content: string
+  /** A generated speech clip for the renderer to play. */
+  clipId?: string
 }
 
 function safeEvaluate(expression: string): number | null {
@@ -168,6 +214,39 @@ async function executeTool(
   const args = call.arguments ?? {}
 
   switch (call.name) {
+    case "speak": {
+      const text = String(args.text ?? "").trim()
+      if (!text) return { ok: false, summary: "no text", content: "Error: missing text." }
+      const style = typeof args.style === "string" ? args.style : undefined
+
+      // A style given here applies to the reply as well.
+      if (style) {
+        const current = config.get()
+        config.update({ voice: { ...current.voice, style } })
+      }
+
+      const spoken = await speak({ text, style })
+      if (!spoken.ok || !spoken.clipId) {
+        return { ok: false, summary: "speech failed", content: `The speech engine failed: ${spoken.error}` }
+      }
+      return {
+        ok: true,
+        summary: "spoken",
+        content: "The message was spoken aloud.",
+        clipId: spoken.clipId
+      }
+    }
+
+    case "set_delivery": {
+      const instruction = String(args.instruction ?? "").trim()
+      if (!instruction) {
+        return { ok: false, summary: "no instruction", content: "Error: missing instruction." }
+      }
+      const current = config.get()
+      config.update({ voice: { ...current.voice, instruct: instruction } })
+      return { ok: true, summary: "delivery changed", content: `The delivery is now: ${instruction}` }
+    }
+
     case "web_search": {
       const query = String(args.query ?? "").trim()
       if (!query) return { ok: false, summary: "web_search needs a query", content: "Error: missing query." }
@@ -321,7 +400,22 @@ export async function runAssistant(options: RunOptions): Promise<void> {
       TOOL_SPECS.some((spec) => spec.name === t)
     )
   )
-  const activeSpecs = TOOL_SPECS.filter((t) => enabledTools.has(t.name))
+
+  // Voice first, then chat, then code — the order the tools are offered in
+  // is the order the assistant prefers them.
+  const priority = [...TOOL_GROUPS.voice, ...TOOL_GROUPS.chat, ...TOOL_GROUPS.code]
+  const byName = new Map(TOOL_SPECS.map((t) => [t.name, t]))
+  const activeSpecs: ToolSpec[] = []
+  for (const name of priority) {
+    if (!enabledTools.has(name)) continue
+    const spec = byName.get(name)
+    if (spec) activeSpecs.push(spec)
+  }
+  for (const spec of TOOL_SPECS) {
+    if (enabledTools.has(spec.name) && !priority.includes(spec.name as never)) {
+      activeSpecs.push(spec)
+    }
+  }
   const useTools = cfg.agent.toolsEnabled && activeSpecs.length > 0
 
   /* Conversation history (system message is rebuilt per provider). */
@@ -418,6 +512,11 @@ export async function runAssistant(options: RunOptions): Promise<void> {
         provider,
         model
       })
+
+      // A voice tool produced audio — hand it to the renderer to play.
+      if (outcome.clipId) {
+        options.emit({ type: "speak", clipId: outcome.clipId, provider, model })
+      }
 
       history.push({
         role: "tool",

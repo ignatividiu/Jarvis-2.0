@@ -3,11 +3,11 @@ import { Sidebar } from "./components/Sidebar"
 import { TopBar } from "./components/TopBar"
 import { ChatPanel } from "./components/Chat/ChatPanel"
 import { Composer } from "./components/Chat/Composer"
-import { Hud } from "./components/Hud"
 import { StatusBar } from "./components/StatusBar"
 import { SettingsDialog } from "./components/Settings/SettingsDialog"
 import { SetupWizard } from "./components/SetupWizard"
 import { VisualizerOverlay } from "./components/VisualizerOverlay"
+import { VisualizerPanel } from "./components/VisualizerPanel"
 import { VoiceDock } from "./components/VoiceDock"
 import { useJarvis } from "./state/store"
 import { useChat } from "./hooks/useChat"
@@ -25,7 +25,6 @@ export function App(): React.ReactElement {
   const hudCollapsed = useJarvis((s) => s.hudCollapsed)
   const toasts = useJarvis((s) => s.toasts)
   const dismissToast = useJarvis((s) => s.dismissToast)
-  const setupOpen = useJarvis((s) => s.setupOpen)
   const { send, cancel, busy } = useChat()
   useSpeaker()
 
@@ -103,6 +102,16 @@ export function App(): React.ReactElement {
     })
   }, [])
 
+  // A voice tool produced audio — play it straight away.
+  useEffect(() => {
+    const onSpeak = (event: Event) => {
+      const detail = (event as CustomEvent<{ clipId: string }>).detail
+      if (detail?.clipId) void voiceSession.playClip(detail.clipId)
+    }
+    window.addEventListener("jarvis:speak", onSpeak)
+    return () => window.removeEventListener("jarvis:speak", onSpeak)
+  }, [])
+
   // Push to talk with the keyboard.
   usePushToTalk(ready, handleVoiceCommand)
 
@@ -118,6 +127,7 @@ export function App(): React.ReactElement {
       wakeMode: settings.voice.wakeMode,
       wakeWord: settings.voice.wakeWord,
       wakeSensitivity: settings.voice.wakeSensitivity,
+      wakeCue: settings.voice.wakeCue,
       silenceTimeoutMs: settings.voice.silenceTimeoutMs,
       inputDeviceId: settings.voice.inputDeviceId,
       sttEngine: settings.voice.sttEngine,
@@ -146,8 +156,21 @@ export function App(): React.ReactElement {
     )
   }
 
+  const chatSide = settings?.ui.chatSide ?? "left"
+  const size = settings?.ui.visualizerSize ?? "large"
+
   return (
-    <div className={`app-shell ${sidebarCollapsed ? "collapsed-sidebar" : ""} ${hudCollapsed ? "collapsed-hud" : ""}`}>
+    <div
+      className={[
+        "app-shell",
+        sidebarCollapsed ? "collapsed-sidebar" : "",
+        hudCollapsed ? "collapsed-hud" : "",
+        chatSide === "right" ? "chat-right" : "",
+        `vis-${size}`
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <Sidebar />
 
       <main className="chat-column">
@@ -157,7 +180,7 @@ export function App(): React.ReactElement {
         <Composer onSend={(text, mode) => void send(text, mode)} onCancel={() => void cancel()} busy={busy} />
       </main>
 
-      {hudCollapsed ? <div /> : <Hud />}
+      <VisualizerPanel />
 
       <StatusBar />
 

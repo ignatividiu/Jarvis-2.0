@@ -246,8 +246,11 @@ export async function startServer(): Promise<{ ok: boolean; message: string }> {
       }
     )
     serverProcess = child
+    // A binary that cannot be run reports the failure here. It must never
+    // become an unhandled error, or it would take the app down.
     serverProcess.on("error", (err) => {
       log.warn("opencode server process error", String(err))
+      serverProcess = null
     })
     serverLogPath = logPath
   } catch (err) {

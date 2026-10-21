@@ -10,6 +10,7 @@ import type {
   OpenCodeStatus,
   ProviderStatus,
   ProviderTestResult,
+  RemoteStatus,
   SearchResponse,
   SetupProgress,
   SetupResult,
@@ -125,6 +126,14 @@ const api: JarvisApi = {
 
   audio: {
     devices: (): Promise<AudioDevices> => listDevices()
+  },
+
+  remote: {
+    status: (): Promise<RemoteStatus> => ipcRenderer.invoke("remote:status"),
+    start: (): Promise<RemoteStatus> => ipcRenderer.invoke("remote:start"),
+    stop: (): Promise<RemoteStatus> => ipcRenderer.invoke("remote:stop"),
+    rotateToken: (): Promise<RemoteStatus> => ipcRenderer.invoke("remote:rotateToken"),
+    addresses: (): Promise<string[]> => ipcRenderer.invoke("remote:addresses")
   },
 
   local: {

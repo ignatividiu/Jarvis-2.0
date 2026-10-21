@@ -2,6 +2,7 @@ import { matchWakeWord, stripFillers } from "@shared/wake"
 import { audioEngine, CAPTURE_SAMPLE_RATE } from "./engine"
 import { BrowserRecognizer } from "./recognizer"
 import { VoiceActivityDetector } from "./vad"
+import { playMissCue, playWakeCue } from "./cue"
 import { pickJarvisVoice, speakWithBrowser, stopBrowserSpeech } from "./speech"
 import type { SttEngine, TtsEngine } from "@shared/types"
 
@@ -79,6 +80,7 @@ export interface SessionSettings {
   wakeMode: "wake-word" | "open" | "off"
   wakeWord: string
   wakeSensitivity: number
+  wakeCue: boolean
   silenceTimeoutMs: number
   inputDeviceId: string
   outputDeviceId: string
@@ -273,6 +275,7 @@ class VoiceSession {
       wakeMode?: "wake-word" | "open" | "off"
       wakeWord?: string
       wakeSensitivity?: number
+      wakeCue?: boolean
       silenceTimeoutMs?: number
       inputDeviceId?: string
       sttEngine?: SttEngine
@@ -284,8 +287,9 @@ class VoiceSession {
     if (settings) {
       this.settingsCache = {
         wakeMode: settings.wakeMode ?? this.settingsCache?.wakeMode ?? "wake-word",
-        wakeWord: settings.wakeWord ?? this.settingsCache?.wakeWord ?? "jarvis",
+        wakeWord: settings.wakeWord ?? this.settingsCache?.wakeWord ?? "Hey jarvis",
         wakeSensitivity: settings.wakeSensitivity ?? this.settingsCache?.wakeSensitivity ?? 0.5,
+        wakeCue: settings.wakeCue ?? this.settingsCache?.wakeCue ?? true,
         silenceTimeoutMs: settings.silenceTimeoutMs ?? this.settingsCache?.silenceTimeoutMs ?? 1200,
         inputDeviceId: settings.inputDeviceId ?? this.settingsCache?.inputDeviceId ?? "",
         sttEngine: settings.sttEngine ?? this.settingsCache?.sttEngine ?? "whisper",
@@ -520,6 +524,10 @@ class VoiceSession {
 
     if (match.matched) {
       const command = match.command
+      // The chime tells the user the wake word was heard, so they know the
+      // rest of their sentence is being listened to.
+      if (settings.wakeCue) void playWakeCue()
+
       if (command) {
         this.clearAwake()
         this.commandHandler?.(command, true)
@@ -539,14 +547,20 @@ class VoiceSession {
       return
     }
 
-    // A command that follows "jarvis" in the same breath already went
+    // A command that follows the trigger in the same breath already went
     // through the matcher above, so anything left is either a follow-up
     // inside the awake window, or it was not meant for JARVIS.
     if (this.state.awake && Date.now() < this.awakeUntil) {
       const command = stripFillers(text)
       this.clearAwake()
       if (command) this.commandHandler?.(command, true)
+      return
     }
+
+    // Something was said, but the trigger was not in it. A quiet note says
+    // "I heard you, but you did not say my name" — without it the trigger
+    // feels like it simply does not work.
+    if (settings.wakeCue) void playMissCue()
   }
 
   /** Go back to sleep. */
@@ -565,6 +579,7 @@ class VoiceSession {
     wakeMode: "wake-word" | "open" | "off"
     wakeWord: string
     wakeSensitivity: number
+    wakeCue: boolean
     silenceTimeoutMs: number
     inputDeviceId: string
     sttEngine: SttEngine
@@ -576,6 +591,7 @@ class VoiceSession {
     wakeMode: "wake-word" | "open" | "off"
     wakeWord: string
     wakeSensitivity: number
+    wakeCue: boolean
     silenceTimeoutMs: number
     inputDeviceId: string
     sttEngine: SttEngine
@@ -591,6 +607,7 @@ class VoiceSession {
       wakeMode: settings.voice.wakeMode,
       wakeWord: settings.voice.wakeWord,
       wakeSensitivity: settings.voice.wakeSensitivity,
+      wakeCue: settings.voice.wakeCue,
       silenceTimeoutMs: settings.voice.silenceTimeoutMs,
       inputDeviceId: settings.voice.inputDeviceId,
       sttEngine: settings.voice.sttEngine,
@@ -657,14 +674,24 @@ class VoiceSession {
   }
 
   /**
-   * Play a generated clip.
+   * Play a clip that was generated elsewhere — for example by the `speak`
+   * tool, which produces the audio in the main process.
+   */
+  async playClip(clipId: string): Promise<boolean> {
+    if (!clipId) return false
+    const url = `jarvismedia://speech/${encodeURIComponent(clipId)}`
+    return this.playClipUrl(url)
+  }
+
+  /**
+   * Play a clip.
    *
    * The Web Audio path is tried first, because the visualiser reacts to the
    * speech. If the clip cannot be decoded it is played with a plain media
    * element instead, which goes straight to the system output — the
    * assistant must be audible even when the graph misbehaves.
    */
-  private async playClip(url: string): Promise<boolean> {
+  private async playClipUrl(url: string): Promise<boolean> {
     const buffer = await audioEngine.decode(url)
     if (buffer) {
       await audioEngine.playBuffer(buffer)

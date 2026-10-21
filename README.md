@@ -22,7 +22,7 @@ microphone · searches the web · writes code · and works entirely on your own 
 - [The voice system](#the-voice-system)
   - [Speaking](#speaking)
   - [Listening](#listening)
-  - [Always-on and the wake word](#always-on-and-the-wake-word)
+  - [Always-on and the trigger phrase](#always-on-and-the-trigger-phrase)
   - [Push to talk](#push-to-talk)
   - [Microphone and speaker](#microphone-and-speaker)
 - [The models](#the-models)
@@ -30,12 +30,17 @@ microphone · searches the web · writes code · and works entirely on your own 
   - [Live model discovery](#live-model-discovery)
   - [Rotation and the circuit breaker](#rotation-and-the-circuit-breaker)
 - [Tools](#tools)
+  - [Voice first, chat second, code third](#voice-first-chat-second-code-third)
+- [Remote access](#remote-access)
 - [The OpenCode coding agent](#the-opencode-coding-agent)
 - [Local models](#local-models)
 - [Web search](#web-search)
 - [The interface](#the-interface)
+  - [Layout](#layout)
+  - [Visualisers](#visualisers)
 - [Getting started](#getting-started)
 - [Building](#building)
+  - [One command per operating system](#one-command-per-operating-system)
 - [Diagnostics](#diagnostics)
 - [How the voice pipeline works](#how-the-voice-pipeline-works)
 - [Configuration reference](#configuration-reference)
@@ -104,18 +109,23 @@ with the JARVIS-like voices marked. One click plays a test phrase through the re
 Recognition is fast enough to be interactive: the *Whisper Tiny* model recognises a one-second
 phrase in roughly **160 ms** on a modern laptop.
 
-### Always-on and the wake word
+### Always-on and the trigger phrase
 
 The **Always on** switch in the voice dock keeps the microphone open. JARVIS then works out where a
 phrase begins and ends, recognises it locally, and only answers when its name was used.
 
-- The wake word defaults to **jarvis** and is configurable.
+- The trigger defaults to **“Hey jarvis”** and is configurable in the Voice tab.
+- It is a *phrase*, not a single word. The leading filler is optional, so “Jarvis, what time is it”
+  works just as well as “Hey jarvis, what time is it”.
 - Near-misses are understood: *jarvus*, *jervis*, *harvis* and *jarvy* all work.
 - The name has to be near the beginning, so *"tell me about jarvis"* does **not** wake it up.
-- Say only *"jarvis"* and it stays awake for the command that follows.
-- A second mode, **Open**, answers every phrase without a wake word.
-- The microphone is released the moment you switch always-on off — the operating system's recording
-  indicator goes out.
+- Say only *"Hey jarvis"* and it stays awake for the command that follows.
+- A second mode, **Open**, answers every phrase without a trigger.
+
+**A sound confirms it.** A short two-note chime plays the moment the trigger is heard, and a quieter
+falling note plays when something was said but the trigger was not in it. Without that feedback the
+trigger feels like it simply does not work — which is the most common reason people think the wake
+word is unreliable. Both sounds can be turned off, and both can be previewed in the Voice tab.
 
 The detector uses an **adaptive noise floor**: the threshold always sits a fixed distance above the
 quietest recent sound, so a desk fan does not trigger the assistant, and a short pre-roll means the
@@ -197,20 +207,54 @@ The shared keyless pool allows one reply every thirty seconds, so JARVIS waits r
 
 ## Tools
 
-The model can call seven tools, and the tool loop runs automatically.
+The model can call ten tools, and the tool loop runs automatically.
 
-| Tool | What it does |
-|---|---|
-| `web_search` | Searches the internet for current information. |
-| `fetch_url` | Reads the full text of a web page. |
-| `code_task` | Delegates a programming task to the OpenCode coding agent. |
-| `list_local_models` | Lists the models installed on this machine, and those available to download. |
-| `install_local_model` | Downloads a model so it can run locally and privately. |
-| `system_info` | Reports the date, time, operating system and machine details. |
-| `calculate` | Evaluates an arithmetic expression exactly. |
+| Tool | Group | What it does |
+|---|---|---|
+| `speak` | voice | Speaks a reply out loud, with an optional delivery style. |
+| `set_delivery` | voice | Changes how the assistant sounds from now on. |
+| `web_search` | chat | Searches the internet for current information. |
+| `fetch_url` | chat | Reads the full text of a web page. |
+| `calculate` | chat | Evaluates an arithmetic expression exactly. |
+| `system_info` | chat | Reports the date, time, operating system and machine details. |
+| `code_task` | code | Delegates a programming task to the OpenCode coding agent. |
+| `list_local_models` | code | Lists the models installed on this machine, and those available to download. |
+| `install_local_model` | code | Downloads a model so it can run locally and privately. |
 
 Providers that cannot do native tool calling get a text protocol instead, so the tool loop works on
 every free model.
+
+### Voice first, chat second, code third
+
+The tools are grouped, and the groups are tried in order:
+
+1. **Voice** — `speak` and `set_delivery`. Talking is what the assistant is for, so the voice tools
+   come first and the model is told to prefer them.
+2. **Chat** — search, page reading, arithmetic and system information.
+3. **Code** — the coding agent and the local model tools. The last resort, and only reached when the
+   request is genuinely about code.
+
+The same order is reflected in the interface: the voice controls sit directly above the composer and
+are the largest thing on screen, the chat is the second surface, and the code mode is an explicit
+option rather than something the assistant reaches for on its own.
+
+---
+
+## Remote access
+
+JARVIS can be reached from another device — a phone, a tablet, another computer — over the network.
+Settings → **Remote access** switches it on.
+
+- A small page is served with a chat box and a **hold-to-talk** button.
+- The audio from that button is recognised by the same local Whisper model, so the phone's
+  microphone is handled exactly like the desktop one — nothing is sent anywhere.
+- Replies come back as text, and as synthesised audio the other device can play.
+- Every request needs the **pairing token**, which is part of the link and can be regenerated at any
+  time.
+- **Restrict to the local network** is on by default, so the assistant cannot be reached from the
+  internet unless you say so.
+
+It is off by default, and the server only listens when it is switched on.
 
 ---
 
@@ -258,10 +302,26 @@ Six backends, chosen automatically or pinned by hand:
 **Material Design 3**, with a light theme, a dark theme and a follow-the-system option. The accent
 colour is configurable.
 
-**Five visualisers** react to the live audio — the microphone when you are speaking, the assistant's
-own voice when it is replying:
+### Layout
 
-`Orb` · `Reactor` · `Spectrum` · `Waveform` · `Grid`
+The window is three columns: the narrow sidebar, the chat, and the visualiser.
+
+- The **visualiser is the large, central panel** — it is the thing you look at.
+- The **chat sits on a side** and can be moved from the left to the right, or back, from the
+  visualiser's own toolbar or from Settings → Preferences.
+- The visualiser can be made **large, medium or small**, again from the toolbar or the settings.
+- The assistant's status, the model sources and the local runtime live underneath the visualiser, so
+  the whole picture is in one place.
+
+Every panel scrolls independently, so nothing is ever cut off when the window is small.
+
+### Visualisers
+
+Eleven presets react to the live audio — the microphone when you are speaking, the assistant's own
+voice when it is replying:
+
+`Orb` · `Reactor` · `Pulse` · `Radial` · `Bloom` · `Helix` · `Ribbon` · `Spectrum` · `Waveform` ·
+`Grid` · `Matrix`
 
 The visualiser can be expanded to fill the whole window, which turns the assistant into an ambient
 display.
@@ -306,6 +366,39 @@ npm run dist:mac     # macOS disk image and zip
 npm run dist:linux   # AppImage, deb and tarball
 npm run dist:all     # all three
 ```
+
+### One command per operating system
+
+Three scripts build a complete, ready-to-run package for one operating system each. They check the
+toolchain, install everything that is missing, download the pieces the app needs at runtime, compile
+the source and produce the installer — so the result runs straight from the disk.
+
+```bash
+npm run build:windows   # an NSIS installer for x64 and arm64, plus a portable build
+npm run build:linux     # an AppImage, a deb and a tarball
+npm run build:macos     # a disk image and a zip for Intel and Apple silicon
+```
+
+Each one reports what it is doing and what it produced:
+
+```
+▸ Checking the toolchain
+  ✓ Node 24.20.0
+  ✓ npm 11.19.0
+▸ Installing dependencies
+  ✓ dependencies installed
+▸ Generating the application icon
+▸ Staging the runtime
+  ✓ runtime folder ready
+▸ Compiling
+▸ Packaging for Windows
+  Built:
+    JARVIS-Setup-2.0.0-x64.exe            230.7 MB
+    JARVIS-2.0.0-portable.exe             230.4 MB
+```
+
+Building for a system other than the one you are on is possible, but some of the packaging tools
+only work natively — the script says so when that is the case.
 
 The Windows build produces a per-user installer, an arm64 installer and a portable executable. The
 macOS build is signed with the entitlements in `build/entitlements.mac.plist`, including microphone
@@ -377,8 +470,9 @@ Everything is editable in the interface, and stored in `%APPDATA%/jarvis-2.0/jar
 | | `sttModel` | `whisper-tiny.en` | The recognition model |
 | | `alwaysOn` | `false` | Keep the microphone open |
 | | `wakeMode` | `wake-word` | `wake-word`, `open` or `off` |
-| | `wakeWord` | `jarvis` | The word that wakes the assistant |
+| | `wakeWord` | `Hey jarvis` | The trigger phrase. The leading filler is optional, so “Jarvis, what time is it” also works. |
 | | `wakeSensitivity` | `0.5` | Higher triggers more easily |
+| | `wakeCue` | `true` | Play a chime when the trigger is heard, a soft note when it is missed |
 | | `silenceTimeoutMs` | `1200` | How long to wait for the rest of a sentence |
 | | `pushToTalkKey` | `Ctrl+Space` | The hold-to-talk shortcut |
 | | `inputDeviceId` / `outputDeviceId` | — | The chosen devices |
@@ -402,6 +496,12 @@ Everything is editable in the interface, and stored in `%APPDATA%/jarvis-2.0/jar
 | **Interface** | `theme` | `dark` | `dark`, `light` or `system` |
 | | `visualizer` | `orb` | The visualiser |
 | | `accent` | `#3ddc97` | The accent colour |
+| | `chatSide` | `left` | `left` or `right` — which side the chat sits on |
+| | `visualizerSize` | `large` | `large`, `medium` or `small` |
+| **Remote** | `enabled` | `false` | Allow the assistant to be reached from the network |
+| | `port` | `8765` | The port the server listens on |
+| | `token` | generated | The pairing token a remote device must present |
+| | `localNetworkOnly` | `true` | Refuse requests that do not come from this network |
 
 ---
 
@@ -413,17 +513,20 @@ src/
     providers/      the free provider catalogue and the rotation engine
     agent/          the tool loop and the system prompt
     voice/          edge · piper · whisper · the engine facade
+    remote/         the network-access server
     tools/          local models, OpenCode, web search
     setup/          the Ollama installer
   preload/          the bridge between the two sides
   renderer/src/
-    audio/          capture, activity detection, playback, devices
-    components/     the interface, including the voice dock
+    audio/          capture, activity detection, playback, devices, cues
+    components/     the interface, the voice dock and the visualiser panel
     state/          the shared store
-  shared/           the IPC contract and the wake word matcher
+  shared/           the IPC contract and the trigger matcher
 scripts/
   bootstrap.mjs     the one-command setup
   launch.mjs        the one-command launcher
+  build.mjs         the shared builder
+  build-windows.mjs, build-linux.mjs, build-macos.mjs
   diagnostics/      the voice and provider checks
 ```
 
@@ -450,6 +553,13 @@ Check that the microphone in Settings → Microphone & speaker is the right one,
 operating system has granted permission. *Allow microphone access* opens the microphone once so the
 device names become visible.
 
+**The trigger does not fire.**
+The trigger is now the phrase **“Hey jarvis”** — if your settings still hold the old single word it
+is migrated automatically, but you can change it in the Voice tab. Make sure the confirmation sound
+is on: the chime tells you the trigger was heard, and the soft note tells you something was heard
+but the trigger was not in it. If neither plays, the microphone is not picking you up. Raising
+**Sensitivity** in the Voice tab makes the detector trigger more easily.
+
 **The assistant does not speak.**
 Look at the log at `%APPDATA%/jarvis-2.0/logs/jarvis.log`. The line
 `[jarvis] played N.NNs of audio` means the clip was played; if it is missing, the engine failed.
@@ -466,6 +576,11 @@ Settings → Local models, then press **Refresh models** in the providers tab.
 **The assistant talks to itself.**
 The echo guard is on. If it still happens, the wake mode is probably set to *Open* — switch it to
 *Wake word* in the Voice tab.
+
+**Remote access will not connect.**
+Check that it is switched on in Settings → Remote access, and that the device is on the same
+network. The pairing token has to be in the link. If *Restrict to the local network* is on, a
+device outside the network is refused on purpose.
 
 ---
 

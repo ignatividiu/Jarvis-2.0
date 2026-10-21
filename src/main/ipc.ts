@@ -212,6 +212,29 @@ export function registerIpc(): void {
     return { ok: true }
   })
 
+  /* ── Remote access ── */
+  ipcMain.handle("remote:status", async () => {
+    const { remoteStatus } = await import("./remote/server")
+    return remoteStatus()
+  })
+  ipcMain.handle("remote:start", async () => {
+    const { startRemote } = await import("./remote/server")
+    return startRemote()
+  })
+  ipcMain.handle("remote:stop", async () => {
+    const { stopRemote } = await import("./remote/server")
+    return stopRemote()
+  })
+  ipcMain.handle("remote:rotateToken", async () => {
+    const { rotateToken } = await import("./remote/server")
+    return rotateToken()
+  })
+  ipcMain.handle("remote:addresses", async () => {
+    const { remoteAddresses } = await import("./remote/server")
+    const port = config.get().remote.port
+    return remoteAddresses(port)
+  })
+
   /* ── Local models ── */
   ipcMain.handle("local:status", () => localStatus())
   ipcMain.handle("local:install", async () => {

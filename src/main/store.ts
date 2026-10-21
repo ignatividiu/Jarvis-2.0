@@ -43,8 +43,11 @@ export const DEFAULT_SETTINGS: Settings = {
     sttModel: "onnx-community/whisper-tiny.en",
     alwaysOn: false,
     wakeMode: "wake-word",
-    wakeWord: "jarvis",
+    // The trigger is a phrase. The leading filler is optional, so
+    // "Jarvis, what time is it" also wakes the assistant.
+    wakeWord: "Hey jarvis",
     wakeSensitivity: 0.5,
+    wakeCue: true,
     silenceTimeoutMs: 1200,
     pushToTalkKey: "Ctrl+Space",
     inputDeviceId: "",
@@ -71,7 +74,16 @@ export const DEFAULT_SETTINGS: Settings = {
     visualizer: "orb",
     accent: "#3ddc97",
     transparency: true,
-    compact: false
+    compact: false,
+    // The chat sits on the left by default; the visualiser is central.
+    chatSide: "left",
+    visualizerSize: "large"
+  },
+  remote: {
+    enabled: false,
+    port: 8765,
+    token: "",
+    localNetworkOnly: true
   },
   agent: {
     toolsEnabled: true,
@@ -139,6 +151,7 @@ class ConfigStore {
     const stored = readJson<Partial<Settings>>(this.configPath)
     if (stored) {
       this.settings = deepMerge(structuredClone(DEFAULT_SETTINGS), stored)
+      this.migrate(stored)
       return
     }
 
@@ -155,6 +168,47 @@ class ConfigStore {
     }
 
     writeJson(this.configPath, this.settings)
+  }
+
+  /**
+   * Bring an older configuration up to date.
+   *
+   * The trigger used to default to the single word "jarvis"; it is now the
+   * phrase "Hey jarvis". A configuration that still holds the old default is
+   * migrated, but one the user has changed is left alone.
+   *
+   * The check runs against the file as it was read, not against the merged
+   * result — otherwise a section that is merely missing would look present.
+   */
+  private migrate(stored: Partial<Settings>): void {
+    const voice = this.settings.voice
+    let changed = false
+
+    if (voice.wakeWord === "jarvis") {
+      voice.wakeWord = "Hey jarvis"
+      changed = true
+    }
+    if (stored.voice?.wakeCue === undefined) {
+      voice.wakeCue = true
+      changed = true
+    }
+    if (stored.ui?.chatSide === undefined) {
+      this.settings.ui.chatSide = "left"
+      changed = true
+    }
+    if (stored.ui?.visualizerSize === undefined) {
+      this.settings.ui.visualizerSize = "large"
+      changed = true
+    }
+    if (stored.remote === undefined) {
+      this.settings.remote = { enabled: false, port: 8765, token: "", localNetworkOnly: true }
+      changed = true
+    }
+
+    if (changed) {
+      writeJson(this.configPath, this.settings)
+      console.log("[jarvis] the settings were migrated to the current defaults")
+    }
   }
 
   get(): Settings {

@@ -148,6 +148,14 @@ export const useJarvis = create<JarvisState>((set, get) => ({
       case "notice":
         set({ notice: chunk.notice })
         break
+      case "speak":
+        // A voice tool produced audio — play it straight away.
+        if (chunk.clipId) {
+          window.dispatchEvent(
+            new CustomEvent("jarvis:speak", { detail: { clipId: chunk.clipId } })
+          )
+        }
+        break
       case "delta":
         set((s) => ({
           streamingText: s.streamingText + (chunk.text ?? ""),

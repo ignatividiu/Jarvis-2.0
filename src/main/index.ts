@@ -250,23 +250,48 @@ function registerMediaProtocol(): void {
 async function bootstrapServices(): Promise<void> {
   const cfg = config.get()
 
-  if (cfg.local.enabled && cfg.local.autostart) {
-    try {
-      const started = await startOllamaServer()
-      if (!started.ok) log.info(`local runtime not started: ${started.message}`)
-    } catch (err) {
-      log.warn("local runtime autostart failed", String(err))
+  // The remote-access server, when it is switched on. It starts first so it
+  // is reachable straight away — the other services can take their time.
+  try {
+    const { syncRemote, rotateToken, remoteStatus } = await import("./remote/server")
+    if (!config.get().remote.token) {
+      // A pairing token is generated the first time the app runs.
+      rotateToken()
     }
+    await syncRemote()
+    const remote = remoteStatus()
+    if (remote.running) {
+      log.info(`remote access is listening on ${remote.addresses.join(", ") || `port ${remote.port}`}`)
+    }
+  } catch (err) {
+    log.warn("remote access could not start", String(err))
   }
 
-  if (cfg.opencode.enabled && cfg.opencode.autostart) {
-    try {
-      const started = await startServer()
-      if (!started.ok) log.info(`opencode not started: ${started.message}`)
-    } catch (err) {
-      log.warn("opencode autostart failed", String(err))
-    }
-  }
+  // The local runtime and the coding agent start in the background; neither
+  // should hold up the other.
+  const background = [
+    (async () => {
+      if (!cfg.local.enabled || !cfg.local.autostart) return
+      try {
+        const started = await startOllamaServer()
+        if (!started.ok) log.info(`local runtime not started: ${started.message}`)
+      } catch (err) {
+        log.warn("local runtime autostart failed", String(err))
+      }
+    })(),
+    (async () => {
+      if (!cfg.opencode.enabled || !cfg.opencode.autostart) return
+      try {
+        const started = await startServer()
+        if (!started.ok) log.info(`opencode not started: ${started.message}`)
+      } catch (err) {
+        log.warn("opencode autostart failed", String(err))
+      }
+    })()
+  ]
+
+  // The failures are already handled inside each task.
+  await Promise.allSettled(background)
 }
 
 const gotLock = app.requestSingleInstanceLock()

@@ -1,15 +1,14 @@
 import { useJarvis } from "../state/store"
 import { JarvisVisualizer } from "./Visualizer/JarvisVisualizer"
-import { VISUALIZER_MODES, type VisualizerMode } from "./Visualizer/visualizers"
+import type { VisualizerMode } from "./Visualizer/visualizers"
 
-export function Hud(): React.ReactElement | null {
+export function Hud({ showVisualizer = false }: { showVisualizer?: boolean }): React.ReactElement | null {
   const settings = useJarvis((s) => s.settings)
   const providers = useJarvis((s) => s.providers)
   const voice = useJarvis((s) => s.voice)
   const local = useJarvis((s) => s.local)
   const opencode = useJarvis((s) => s.opencode)
   const state = useJarvis((s) => s.state)
-  const updateSettings = useJarvis((s) => s.updateSettings)
   const streamingProvider = useJarvis((s) => s.streamingProvider)
   const streamingModel = useJarvis((s) => s.streamingModel)
   const toggleVisualizer = useJarvis((s) => s.toggleVisualizer)
@@ -20,58 +19,38 @@ export function Hud(): React.ReactElement | null {
   const mode = (settings.ui.visualizer as VisualizerMode) ?? "orb"
   const localModels = local?.models.filter((m) => m.installed) ?? []
 
-  const setMode = (next: VisualizerMode): void => {
-    void updateSettings({ ui: { ...settings.ui, visualizer: next } })
-  }
-
   return (
     <aside className="hud">
-      <div className="hud-visualizer">
-        <JarvisVisualizer mode={mode} accent={settings.ui.accent} />
+      {showVisualizer && (
+        <div className="hud-visualizer">
+          <JarvisVisualizer mode={mode} accent={settings.ui.accent} />
 
-        <button
-          type="button"
-          className="hud-expand"
-          onClick={toggleVisualizer}
-          title="Expand the visualiser"
-          aria-label="Expand the visualiser"
-        >
-          <span className="material-symbols-outlined">open_in_full</span>
-        </button>
+          <button
+            type="button"
+            className="hud-expand"
+            onClick={toggleVisualizer}
+            title="Expand the visualiser"
+            aria-label="Expand the visualiser"
+          >
+            <span className="material-symbols-outlined">open_in_full</span>
+          </button>
 
-        <div className="hud-overlay">
-          <div>
-            <div className="hud-state">
-              {state === "listening" ? "listening" : state === "thinking" ? "processing" : state === "speaking" ? "speaking" : "standby"}
-            </div>
-            <div className="hud-readout">
-              {streamingModel ?? settings.persona.name.toUpperCase()}
-              <br />
-              {streamingProvider ?? (ready.length ? `${ready.length} sources` : "no source")}
+          <div className="hud-overlay">
+            <div>
+              <div className="hud-state">
+                {state === "listening" ? "listening" : state === "thinking" ? "processing" : state === "speaking" ? "speaking" : "standby"}
+              </div>
+              <div className="hud-readout">
+                {streamingModel ?? settings.persona.name.toUpperCase()}
+                <br />
+                {streamingProvider ?? (ready.length ? `${ready.length} sources` : "no source")}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="hud-body">
-        <div className="hud-group">
-          <h4>Visualiser</h4>
-          <div className="row wrap" style={{ gap: 6 }}>
-            {VISUALIZER_MODES.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={`btn sm ${mode === m.id ? "primary" : "ghost"}`}
-                onClick={() => setMode(m.id)}
-                title={m.label}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{m.icon}</span>
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="hud-group">
           <h4>Assistant</h4>
           <div className="hud-row">

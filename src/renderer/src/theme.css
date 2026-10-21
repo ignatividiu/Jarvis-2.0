@@ -199,35 +199,195 @@ p {
 
 /* ==========================================================================
    Shell
+   The window is split into three columns: the sidebar, the chat and the
+   visualiser. The chat can sit on either side of the visualiser, and the
+   visualiser can be made larger or smaller.
    ========================================================================== */
 
 .app-shell {
+  --vis: 46%;
+  --side: 230px;
   display: grid;
-  grid-template-columns: 230px 1fr 320px;
+  grid-template-columns: var(--side) minmax(320px, 1fr) minmax(280px, var(--vis));
   height: 100vh;
   overflow: hidden;
 }
 
+.app-shell.vis-medium {
+  --vis: 36%;
+}
+.app-shell.vis-small {
+  --vis: 26%;
+}
+
 .app-shell.collapsed-sidebar {
-  grid-template-columns: 0 1fr 320px;
+  --side: 0px;
 }
-.app-shell.collapsed-hud {
-  grid-template-columns: 230px 1fr 0;
+
+.app-shell > .sidebar {
+  grid-column: 1;
+  grid-row: 1;
 }
-.app-shell.collapsed-sidebar.collapsed-hud {
-  grid-template-columns: 0 1fr 0;
+.app-shell > .chat-column {
+  grid-column: 2;
+  grid-row: 1;
+}
+.app-shell > .visualizer-column {
+  grid-column: 3;
+  grid-row: 1;
+}
+.app-shell > .status-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* With the chat on the right the two panels swap places. */
+.app-shell.chat-right {
+  grid-template-columns: var(--side) minmax(280px, var(--vis)) minmax(320px, 1fr);
+}
+.app-shell.chat-right > .chat-column {
+  grid-column: 3;
+}
+.app-shell.chat-right > .visualizer-column {
+  grid-column: 2;
 }
 
 .app-shell > .sidebar,
-.app-shell > .hud {
+.app-shell > .chat-column,
+.app-shell > .visualizer-column {
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
 .app-shell > .chat-column {
   display: flex;
   flex-direction: column;
-  min-width: 0;
   background: var(--md-sys-color-background);
+}
+
+/* ==========================================================================
+   Visualiser panel
+   ========================================================================== */
+
+.visualizer-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-left: 1px solid var(--jarvis-line);
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.app-shell.chat-right .visualizer-column {
+  border-left: none;
+  border-right: 1px solid var(--jarvis-line);
+}
+
+.visualizer-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+  flex: 1 1 auto;
+  border-bottom: 1px solid var(--jarvis-line);
+}
+
+.visualizer-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  display: block;
+  flex: 1 1 auto;
+}
+
+.visualizer-tools {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.tool-group {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: color-mix(in srgb, var(--md-sys-color-surface-container) 78%, transparent);
+  border: 1px solid var(--jarvis-line);
+  pointer-events: auto;
+}
+
+.tool-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  color: var(--jarvis-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.tool-toggle:hover {
+  color: var(--jarvis-text);
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.tool-toggle.on {
+  background: color-mix(in srgb, var(--jarvis-primary) 20%, transparent);
+  color: var(--jarvis-primary);
+}
+
+.tool-toggle .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.visualizer-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 12px 12px 16px;
+}
+
+.mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: var(--md-sys-shape-corner-full);
+  border: 1px solid var(--jarvis-line);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--jarvis-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+.mode-chip:hover {
+  color: var(--jarvis-text);
+  border-color: color-mix(in srgb, var(--jarvis-primary) 40%, transparent);
+}
+
+.mode-chip.on {
+  background: color-mix(in srgb, var(--jarvis-primary) 18%, transparent);
+  border-color: var(--jarvis-primary);
+  color: var(--jarvis-primary);
+}
+
+.mode-chip .material-symbols-outlined {
+  font-size: 15px;
 }
 
 /* ==========================================================================
@@ -242,6 +402,9 @@ p {
   background: var(--md-sys-color-surface-container-low);
   border-right: 1px solid var(--jarvis-line);
   min-width: 230px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-brand {
@@ -293,6 +456,7 @@ p {
   flex-direction: column;
   gap: 2px;
   overflow-y: auto;
+  min-height: 0;
   flex: 1 1 auto;
 }
 
@@ -364,10 +528,14 @@ p {
 
 .top-title h2 {
   font-size: 15px;
+  white-space: nowrap;
 }
 .top-title span {
   font-size: 11px;
   color: var(--jarvis-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chip {
@@ -404,8 +572,11 @@ p {
 
 .messages {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px 16px 8px;
+  scrollbar-gutter: stable;
 }
 
 .messages-inner {
@@ -697,8 +868,9 @@ p {
 .hud {
   display: flex;
   flex-direction: column;
-  min-width: 320px;
-  border-left: 1px solid var(--jarvis-line);
+  min-width: 0;
+  min-height: 0;
+  border-top: 1px solid var(--jarvis-line);
   background: var(--md-sys-color-surface-container-low);
   overflow: hidden;
 }
@@ -706,6 +878,7 @@ p {
 .hud-visualizer {
   position: relative;
   height: 250px;
+  flex: 0 0 auto;
   border-bottom: 1px solid var(--jarvis-line);
 }
 
@@ -768,11 +941,14 @@ p {
 
 .hud-body {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  scrollbar-gutter: stable;
 }
 
 .hud-group h4 {
@@ -880,6 +1056,7 @@ p {
   max-height: 88vh;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   border-radius: var(--md-sys-shape-corner-xl);
   background: var(--md-sys-color-surface-container);
   border: 1px solid var(--jarvis-line);
@@ -901,8 +1078,11 @@ p {
 
 .dialog-body {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 18px;
+  scrollbar-gutter: stable;
 }
 
 .dialog-foot {
@@ -1255,12 +1435,15 @@ input[type="range"] {
 .wizard {
   width: min(720px, 92vw);
   max-height: 88vh;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 26px 28px;
   border-radius: var(--md-sys-shape-corner-xl);
   background: var(--md-sys-color-surface-container);
   border: 1px solid var(--jarvis-line);
   box-shadow: var(--md-sys-elevation-level3);
+  scrollbar-gutter: stable;
 }
 
 .wizard-steps {

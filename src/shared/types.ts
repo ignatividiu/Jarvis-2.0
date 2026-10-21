@@ -171,7 +171,7 @@ export interface ChatRequest {
 }
 
 export interface ChatChunk {
-  type: "start" | "delta" | "tool" | "tool-result" | "notice" | "end" | "error"
+  type: "start" | "delta" | "tool" | "tool-result" | "notice" | "end" | "error" | "speak"
   text?: string
   provider?: string
   model?: string
@@ -181,6 +181,10 @@ export interface ChatChunk {
   notice?: string
   error?: string
   durationMs?: number
+  /** A generated speech clip that the renderer should play straight away. */
+  clipId?: string
+  /** The mime type of the clip. */
+  mimeType?: string
 }
 
 /* ──────────────────────────  Voice  ────────────────────────── */
@@ -322,6 +326,25 @@ export interface AudioDevices {
   error?: string
 }
 
+/* ──────────────────────────  Remote access  ────────────────────────── */
+
+export interface RemoteStatus {
+  /** True when the server is listening. */
+  running: boolean
+  /** The port it listens on. */
+  port: number
+  /** The addresses a remote device can use. */
+  addresses: string[]
+  /** The token a remote device has to present. */
+  token: string
+  /** True when the request came from this machine. */
+  enabled: boolean
+  /** Only allow requests from the local network. */
+  localNetworkOnly: boolean
+  /** The last error, if the server could not start. */
+  error?: string
+}
+
 /* ──────────────────────────  Local models  ────────────────────────── */
 
 export interface LocalModel {
@@ -416,6 +439,12 @@ export interface OpenCodeSession {
 
 /* ──────────────────────────  Settings  ────────────────────────── */
 
+/** Which side of the window the chat column sits on. */
+export type ChatSide = "left" | "right"
+
+/** How much room the visualiser takes. */
+export type VisualizerSize = "large" | "medium" | "small"
+
 export interface Settings {
   rotation: RotationConfig
   persona: {
@@ -452,10 +481,17 @@ export interface Settings {
     alwaysOn: boolean
     /** What wakes the assistant up. */
     wakeMode: WakeMode
-    /** The word that wakes the assistant up. */
+    /**
+     * The phrase that wakes the assistant up.
+     *
+     * It may be more than one word — the default is "Hey jarvis". The
+     * leading filler is optional, so "Jarvis, what time is it" works too.
+     */
     wakeWord: string
     /** Higher = triggers more easily. */
     wakeSensitivity: number
+    /** Play a short confirmation tone when the wake word is heard. */
+    wakeCue: boolean
     /** Silence after the last word that ends an utterance, in ms. */
     silenceTimeoutMs: number
     /** Keyboard shortcut that pushes to talk, e.g. "Ctrl+Space". */
@@ -485,11 +521,25 @@ export interface Settings {
   }
   ui: {
     theme: "dark" | "light" | "system"
-    visualizer: "orb" | "reactor" | "bars" | "waveform" | "grid"
+    visualizer: string
     accent: string
     /** Window transparency for the HUD look. */
     transparency: boolean
     compact: boolean
+    /** Which side the chat column sits on. */
+    chatSide: ChatSide
+    /** How much room the visualiser takes. */
+    visualizerSize: VisualizerSize
+  }
+  remote: {
+    /** Allow the assistant to be reached from outside this machine. */
+    enabled: boolean
+    /** The port the remote server listens on. */
+    port: number
+    /** The pairing token a remote device has to present. */
+    token: string
+    /** Only answer requests that come from this network. */
+    localNetworkOnly: boolean
   }
   agent: {
     /** Allow the agent to use tools. */
@@ -595,6 +645,17 @@ export interface JarvisApi {
   audio: {
     /** List microphones and speakers. */
     devices(): Promise<AudioDevices>
+  }
+  remote: {
+    /** The current state of the remote-access server. */
+    status(): Promise<RemoteStatus>
+    /** Start or stop the server. */
+    start(): Promise<RemoteStatus>
+    stop(): Promise<RemoteStatus>
+    /** Generate a new pairing token. */
+    rotateToken(): Promise<RemoteStatus>
+    /** The address a remote device should point at. */
+    addresses(): Promise<string[]>
   }
   local: {
     status(): Promise<LocalStatus>

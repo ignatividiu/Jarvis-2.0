@@ -170,6 +170,35 @@ export function GeneralTab(): React.ReactElement | null {
         </div>
       </div>
 
+      <h4 style={{ marginTop: 22 }}>Layout</h4>
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="chat-side">Chat position</label>
+          <select
+            id="chat-side"
+            value={settings.ui.chatSide}
+            onChange={(e) => setUi({ chatSide: e.target.value as typeof settings.ui.chatSide })}
+          >
+            <option value="left">Left — the visualiser is on the right</option>
+            <option value="right">Right — the visualiser is in the middle</option>
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="vis-size">Visualiser size</label>
+          <select
+            id="vis-size"
+            value={settings.ui.visualizerSize}
+            onChange={(e) => setUi({ visualizerSize: e.target.value as typeof settings.ui.visualizerSize })}
+          >
+            <option value="large">Large</option>
+            <option value="medium">Medium</option>
+            <option value="small">Small</option>
+          </select>
+          <span className="hint">The visualiser can also be changed from the panel itself.</span>
+        </div>
+      </div>
+
       <div className="field">
         <label htmlFor="reset">Reset</label>
         <div className="row" style={{ gap: 8 }}>
