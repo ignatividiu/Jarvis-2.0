@@ -57,6 +57,20 @@ export function LocalTab(): React.ReactElement | null {
     }
   }
 
+  /** Start, stop and restart the runtime. */
+  const run = async (action: "start" | "stop" | "restart"): Promise<void> => {
+    setBusy(action)
+    try {
+      const result = await window.jarvis.local[action]()
+      toast(result.message, result.ok ? "success" : "error")
+      await refreshLocal()
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <>
       <h4>Local runtime</h4>
@@ -66,23 +80,57 @@ export function LocalTab(): React.ReactElement | null {
         rights are needed.
       </p>
 
-      <div className="row spread" style={{ marginBottom: 12 }}>
+      <div className="row spread" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <span>
           Backend: <b>{local.backend}</b>
-          {local.version ? ` (${local.version})` : ""}
+          {local.version ? ` (${local.version})` : ""} ·{" "}
+          <span className={local.available ? "" : "muted"}>
+            {local.available ? "running" : "not running"}
+          </span>
         </span>
-        {local.installed ? (
-          <button type="button" className="btn sm" onClick={() => void refreshLocal()}>
-            <span className="material-symbols-outlined">refresh</span>
-            Refresh
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => void run("start")}
+            disabled={busy !== null || local.available}
+            title="Start the local model runtime"
+          >
+            <span className="material-symbols-outlined">play_arrow</span>
+            {busy === "start" ? "Starting…" : "Start"}
           </button>
-        ) : (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => void run("restart")}
+            disabled={busy !== null}
+            title="Stop and start the runtime again"
+          >
+            <span className="material-symbols-outlined">restart_alt</span>
+            {busy === "restart" ? "Restarting…" : "Restart"}
+          </button>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => void run("stop")}
+            disabled={busy !== null || !local.available}
+            title="Stop the runtime"
+          >
+            <span className="material-symbols-outlined">stop</span>
+            {busy === "stop" ? "Stopping…" : "Stop"}
+          </button>
+        </div>
+      </div>
+
+      {!local.installed && (
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
           <button type="button" className="btn sm primary" onClick={() => void install()} disabled={installing}>
             <span className="material-symbols-outlined">download</span>
             {installing ? "Installing…" : "Install the local runtime"}
           </button>
-        )}
-      </div>
+          <span className="tiny muted">About 1.2 GB, unpacked into the app's own folder.</span>
+        </div>
+      )}
 
       {local.error && <div className="banner info">{local.error}</div>}
 
@@ -95,14 +143,25 @@ export function LocalTab(): React.ReactElement | null {
                 <span className="name">{m.name}</span>
                 {m.parameterSize && <span className="chip">{m.parameterSize}</span>}
                 {m.quantization && <span className="chip">{m.quantization}</span>}
+                {m.modifiedAt && <span className="chip">{m.modifiedAt.slice(0, 10)}</span>}
               </div>
-              <div className="row" style={{ gap: 6, marginTop: 8 }}>
+              <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
                 <button
                   type="button"
                   className={`btn sm ${settings.local.model === m.name ? "primary" : "ghost"}`}
                   onClick={() => void updateSettings({ local: { ...settings.local, model: m.name } })}
                 >
                   {settings.local.model === m.name ? "Preferred" : "Make preferred"}
+                </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => void pull(m.name)}
+                  disabled={busy === m.name}
+                  title="Download the latest version of this model"
+                >
+                  <span className="material-symbols-outlined">download</span>
+                  {busy === m.name ? "Downloading…" : "Re-download"}
                 </button>
                 <button
                   type="button"
@@ -121,13 +180,18 @@ export function LocalTab(): React.ReactElement | null {
 
       <h4>Available to download</h4>
       {available.length === 0 ? (
-        <p className="sub">The catalogue is empty. Install the runtime to see the models it can fetch.</p>
+        <p className="sub">
+          {local.installed
+            ? "Every model in the catalogue is installed."
+            : "The catalogue is empty. Install the runtime to see the models it can fetch."}
+        </p>
       ) : (
         available.map((m) => (
           <div key={m.name} className="provider-card">
             <div className="provider-top">
               <span className="name">{m.name}</span>
               {m.recommended && <span className="chip good">recommended</span>}
+              {m.light && <span className="chip">light</span>}
               {m.parameterSize && <span className="chip">{m.parameterSize}</span>}
               {m.quantization && <span className="chip">{m.quantization}</span>}
             </div>
@@ -135,14 +199,22 @@ export function LocalTab(): React.ReactElement | null {
             <div className="row" style={{ gap: 6, marginTop: 8 }}>
               <button
                 type="button"
-                className="btn sm"
+                className="btn sm primary"
                 onClick={() => void pull(m.name)}
                 disabled={busy === m.name}
               >
                 <span className="material-symbols-outlined">download</span>
                 {busy === m.name ? "Downloading…" : `Download (${(m.sizeBytes / 1e9).toFixed(1)} GB)`}
               </button>
+              <span className="tiny muted">
+                {m.sizeBytes > 0 ? `${(m.sizeBytes / 1e9).toFixed(1)} GB` : ""}
+              </span>
             </div>
+            {busy === m.name && local.progress !== undefined && (
+              <div className="progress" style={{ marginTop: 8 }}>
+                <i style={{ width: `${local.progress}%` }} />
+              </div>
+            )}
           </div>
         ))
       )}

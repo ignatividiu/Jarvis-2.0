@@ -128,6 +128,39 @@ export function ProvidersTab(): React.ReactElement {
 
       {provider.notes && <p className="provider-notes">{provider.notes}</p>}
 
+      {/* The model this provider should use. */}
+      {provider.models.length > 0 && (
+        <div className="row" style={{ gap: 8, marginTop: 8 }}>
+          <label className="tiny muted nowrap" htmlFor={`model-${provider.id}`}>
+            Model
+          </label>
+          <select
+            id={`model-${provider.id}`}
+            value={settings.rotation.modelPreference[provider.id] ?? ""}
+            onChange={(e) =>
+              void updateSettings({
+                rotation: {
+                  ...settings.rotation,
+                  modelPreference: {
+                    ...settings.rotation.modelPreference,
+                    [provider.id]: e.target.value
+                  }
+                }
+              })
+            }
+            style={{ flex: 1, minWidth: 0 }}
+          >
+            <option value="">Automatic — the first one the provider offers</option>
+            {provider.models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name ?? m.id}
+                {m.context ? ` · ${Math.round(m.context / 1000)}k` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {provider.models.length > 0 && (
         <div className="provider-models">
           {provider.models.slice(0, 6).map((m) => (

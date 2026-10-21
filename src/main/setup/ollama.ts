@@ -246,16 +246,28 @@ export async function startOllamaServer(): Promise<{ ok: boolean; message: strin
   return { ok: false, message: "The local model runtime did not become ready in time." }
 }
 
-/** Stop the runtime, if this app started it. */
-export function stopOllamaServer(): void {
+/**
+ * Stop the runtime.
+ *
+ * Only a runtime this app started is stopped — a system-wide Ollama belongs
+ * to the user, and quietly killing it would be rude. The result says which
+ * of the two happened.
+ */
+export function stopOllamaServer(): { ok: boolean; message: string } {
   if (server && !server.killed) {
     try {
       server.kill()
     } catch {
       /* ignore */
     }
+    server = null
+    return { ok: true, message: "The local model runtime was stopped." }
   }
-  server = null
+  return {
+    ok: true,
+    message:
+      "The local model runtime was not started by JARVIS, so it was left alone — stop it from the system tray if you want it off."
+  }
 }
 
 /** How much space the runtime takes. */

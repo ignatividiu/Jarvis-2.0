@@ -456,14 +456,21 @@ class VoiceSession {
         language: this.settingsCache?.language || undefined
       })
       if (result.error) {
+        // A silent failure is the worst kind: the microphone is clearly on,
+        // and nothing comes back. Say so.
+        console.warn(`[jarvis] the speech could not be recognised: ${result.error}`)
         this.set({ error: result.error })
         return ""
       }
       const text = (result.text ?? "").trim()
       this.set({ lastTranscript: text })
+      // What was actually heard, so the trigger can be checked against it.
+      console.info(`[jarvis] heard: ${text ? `"${text}"` : "(nothing)"}`)
       return text
     } catch (err) {
-      this.set({ error: err instanceof Error ? err.message : String(err) })
+      const message = err instanceof Error ? err.message : String(err)
+      console.warn(`[jarvis] the speech could not be recognised: ${message}`)
+      this.set({ error: message })
       return ""
     } finally {
       this.set({ transcribing: false })

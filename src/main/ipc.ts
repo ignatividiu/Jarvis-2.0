@@ -30,7 +30,7 @@ import {
   setDirectory,
   startServer
 } from "./tools/opencode"
-import { installOllama, startOllamaServer } from "./setup/ollama"
+import { installOllama, startOllamaServer, stopOllamaServer } from "./setup/ollama"
 import {
   downloadSpeechModel,
   installOfflineVoice,
@@ -252,9 +252,23 @@ export function registerIpc(): void {
     return status
   })
   ipcMain.handle("local:remove", (_e, tag: string) => removeModel(tag))
+  ipcMain.handle("local:start", async () => {
+    const result = await startOllamaServer()
+    if (result.ok) log.info(`local runtime started: ${result.message}`)
+    else log.warn(`the local runtime did not start: ${result.message}`)
+    return result
+  })
+  ipcMain.handle("local:stop", async () => {
+    const result = await stopOllamaServer()
+    log.info(`local runtime stopped: ${result.message}`)
+    return result
+  })
   ipcMain.handle("local:restart", async () => {
-    await startOllamaServer()
-    return localStatus()
+    await stopOllamaServer()
+    const result = await startOllamaServer()
+    if (result.ok) log.info(`local runtime restarted: ${result.message}`)
+    else log.warn(`the local runtime did not restart: ${result.message}`)
+    return result
   })
 
   /* ── Web search ── */

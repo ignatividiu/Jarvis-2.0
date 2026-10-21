@@ -141,7 +141,12 @@ const api: JarvisApi = {
     install: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke("local:install"),
     pull: (tag: string): Promise<LocalStatus> => ipcRenderer.invoke("local:pull", tag),
     remove: (tag: string): Promise<LocalStatus> => ipcRenderer.invoke("local:remove", tag),
-    restart: (): Promise<LocalStatus> => ipcRenderer.invoke("local:restart")
+    /** Start the local model runtime. */
+    start: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke("local:start"),
+    /** Stop the local model runtime. */
+    stop: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke("local:stop"),
+    /** Stop and start the local model runtime. */
+    restart: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke("local:restart")
   },
 
   websearch: {

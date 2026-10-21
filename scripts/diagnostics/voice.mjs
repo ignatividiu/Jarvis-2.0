@@ -310,6 +310,35 @@ async function testVad() {
   pass("the detector ignores room tone")
 }
 
+/* ── The language mapping ── */
+
+async function testLanguageMapping() {
+  const { toWhisperLanguage } = await import("../../src/shared/languages.ts")
+
+  const cases = [
+    ["en-GB", "en"],
+    ["en-US", "en"],
+    ["pt-BR", "pt"],
+    ["de-DE", "de"],
+    ["en", "en"],
+    ["auto", undefined],
+    ["", undefined]
+  ]
+
+  let ok = true
+  for (const [input, expected] of cases) {
+    const result = toWhisperLanguage(input)
+    if (result !== expected) {
+      fail(`toWhisperLanguage(${JSON.stringify(input)}) → ${JSON.stringify(result)} (expected ${JSON.stringify(expected)})`)
+      ok = false
+    }
+  }
+  if (ok) {
+    pass(`Locales are reduced to Whisper's language codes across ${cases.length} cases`)
+  }
+  return ok
+}
+
 /* ── Main ── */
 
 async function main() {
@@ -374,6 +403,13 @@ async function main() {
     await testVad()
   } catch (err) {
     fail(`The voice activity detector failed: ${err.message}`)
+  }
+
+  heading("Language handling")
+  try {
+    await testLanguageMapping()
+  } catch (err) {
+    fail(`The language mapping failed: ${err.message}`)
   }
 
   console.log()

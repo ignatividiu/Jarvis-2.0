@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { voiceSession, type VoiceSessionState } from "../audio/session"
+import { useJarvis } from "../state/store"
 
 /**
  * A thin React binding over the voice session.
@@ -62,6 +63,19 @@ export function useVoice(): {
   const speak = useCallback(async (text: string): Promise<boolean> => voiceSession.speak(text), [])
 
   const stopSpeaking = useCallback((): void => voiceSession.stopSpeaking(), [])
+
+  // A failure in the voice pipeline has to be visible. The microphone can be
+  // clearly on — the visualiser shows it — and still nothing comes back, which
+  // looks like the assistant ignoring you.
+  const toast = useJarvis((s) => s.toast)
+  const lastError = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (state.error && state.error !== lastError.current) {
+      lastError.current = state.error
+      toast(state.error, "error")
+    }
+    if (!state.error) lastError.current = undefined
+  }, [state.error, toast])
 
   return {
     state,

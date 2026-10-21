@@ -414,6 +414,5 @@ if (!gotLock) {
       stopOllamaServer()
     } catch (err) {
       log.warn("could not stop the local services", String(err))
-    }
-  })
+    }  })
 }

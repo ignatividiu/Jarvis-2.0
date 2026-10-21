@@ -3,6 +3,7 @@ import { useJarvis } from "../../state/store"
 import { audioEngine } from "../../audio/engine"
 import { speakWithBrowser } from "../../audio/speech"
 import { playMissCue, playWakeCue } from "../../audio/cue"
+import { LANGUAGE_GROUPS } from "@shared/languages"
 import type { VoiceOption } from "@shared/types"
 
 const ENGINES = [
@@ -167,23 +168,18 @@ export function VoiceTab(): React.ReactElement | null {
         <div className="field">
           <label>Language</label>
           <select value={v.language} onChange={(e) => setVoice({ language: e.target.value })}>
-            <option value="en-GB">English (United Kingdom)</option>
-            <option value="en-US">English (United States)</option>
-            <option value="en-AU">English (Australia)</option>
-            <option value="en-IN">English (India)</option>
-            <option value="de-DE">Deutsch</option>
-            <option value="fr-FR">Francais</option>
-            <option value="es-ES">Espanol</option>
-            <option value="it-IT">Italiano</option>
-            <option value="pt-BR">Portugues (Brasil)</option>
-            <option value="nl-NL">Nederlands</option>
-            <option value="pl-PL">Polski</option>
-            <option value="ru-RU">Russkij</option>
-            <option value="ja-JP">Nihongo</option>
-            <option value="ko-KR">Hangugeo</option>
-            <option value="zh-CN">Zhongwen (Jian ti)</option>
+            <option value="auto">Automatic — let the model choose</option>
+            {LANGUAGE_GROUPS.map((group) => (
+              <optgroup key={group.code} label={group.label}>
+                {group.locales.map((locale) => (
+                  <option key={locale} value={locale}>
+                    {locale}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
-          <span className="hint">Sets the accent of the generated speech.</span>
+          <span className="hint">Sets the accent of the generated speech and the language of the recognition.</span>
         </div>
       </div>
 

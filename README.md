@@ -180,6 +180,18 @@ so an existing setup needs no configuration at all.
 **For a smooth experience, add one free key.** Google AI Studio is the most generous, Groq is the
 fastest, and OpenRouter has dozens of `:free` models.
 
+### Choosing the model
+
+Every provider card in Settings → Model providers has a **Model** dropdown. Pick a specific model
+for that provider, or leave it on *Automatic* to take whichever the provider offers first.
+
+The choice is remembered per provider, is checked against the live catalogue, and is used by the
+rotation engine on the next request. A model that has been retired falls back to the automatic
+choice rather than failing the request.
+
+**Refresh models** re-reads a provider's live list, and **Test every source** probes all of them at
+once.
+
 ### Live model discovery
 
 The single biggest reason a provider appears to be broken is a **stale model name**. Free model ids
@@ -287,6 +299,19 @@ sessions.
 **Ollama** is downloaded into the app's own folder — no administrator rights, no system-wide
 install — and started as a child process. LM Studio and a llama.cpp server are detected
 automatically when they are already running.
+
+The Local models tab controls the runtime directly:
+
+| | What it does |
+|---|---|
+| **Start** | Starts the runtime and waits until it answers. |
+| **Restart** | Stops it and starts it again — the fix when a model stops responding. |
+| **Stop** | Stops the runtime. A runtime JARVIS did not start is left alone, and says so. |
+| **Install the local runtime** | Downloads and unpacks Ollama into the app's folder. |
+| **Download** | Fetches a model from the catalogue, with a progress bar. |
+| **Re-download** | Fetches the same model again — useful after it is corrupted. |
+| **Remove** | Deletes a model from the machine. |
+| **Make preferred** | Chooses the model the local provider answers with. |
 
 A catalogue of sensible models is offered, with their sizes and a note on what each is good for.
 The **4B** and **8B** models are comfortable on a laptop; the smaller ones are for CPU-only
@@ -483,6 +508,7 @@ Everything is editable in the interface, and stored in `%APPDATA%/jarvis-2.0/jar
 | | `language` | `en-GB` | The accent of the generated speech |
 | | `rate` / `pitch` / `volume` | `1` | Delivery |
 | | `sttModel` | `whisper-base` | The recognition model. *Base* is the default; *tiny* is faster but less accurate on names. |
+| | `language` | `en-GB` | The accent of the speech and the language of the recognition. *Automatic* lets the model decide. |
 | | `alwaysOn` | `false` | Keep the microphone open |
 | | `wakeMode` | `wake-word` | `wake-word`, `open` or `off` |
 | | `wakeWord` | `Hey jarvis` | The trigger phrase. The leading filler is optional, so “Jarvis, what time is it” also works. |
@@ -585,6 +611,23 @@ Look at the log at `%APPDATA%/jarvis-2.0/logs/jarvis.log`. The line
 if the source count is zero, the graph was not connected. If the line is missing entirely, the engine
 failed. `npm run test:voice` checks the whole chain, and the **Test** button in the voice dock
 plays a phrase through the real path.
+
+**The assistant does not reply when you say “Hey jarvis”.**
+Check the log first. Every recognition is now logged, so you can see exactly what was heard:
+
+```
+[jarvis] heard: "hey jarvis what time is it"
+```
+
+- If nothing is logged, the detector did not hear a phrase — raise **Sensitivity**, or check the
+  microphone in Settings → Microphone & speaker.
+- If the transcript is logged but the name is wrong in it (*"hey service"*), the recognition model
+  is struggling. Switch to **Whisper Base** or **Small** in the Voice tab.
+- If the transcript is right and nothing happens, the wake mode may be set to *Off*.
+
+The recognition language matters too: Whisper only understands two-letter language codes, so a
+locale like *en-GB* is reduced to *en* before it reaches the model. The Voice tab lists the locales
+by language, and *Automatic* lets the model decide.
 
 **The models are not working.**
 Open Settings → Model providers and press **Test every source**. A provider that needs a key will

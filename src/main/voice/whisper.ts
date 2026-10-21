@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { pipeline, env, type AutomaticSpeechRecognitionPipeline } from "@huggingface/transformers"
 import type { SpeechModelStatus, SttEngine } from "@shared/types"
+import { toWhisperLanguage } from "@shared/languages"
 import { createLogger } from "../logger"
 
 const log = createLogger("voice:whisper")
@@ -205,15 +206,32 @@ export async function transcribe(
   const asr = await loadModel(modelId)
 
   const isEnglishOnly = SPEECH_MODELS.find((m) => m.id === modelId)?.englishOnly ?? false
-  const language = options.language && options.language !== "auto" ? options.language : undefined
+  // Whisper only knows two-letter language codes, so a locale has to be
+  // reduced first. Passing "en-GB" makes a multilingual model fail.
+  const language = toWhisperLanguage(options.language)
 
   const started = Date.now()
-  const output = (await asr(samples, {
-    // English-only models refuse these options.
-    ...(isEnglishOnly ? {} : { language: language ?? "en", task: "transcribe" as const })
-  })) as { text?: string } | string
 
-  const text = typeof output === "string" ? output : (output?.text ?? "")
+  const run = async (withLanguage: boolean): Promise<string> => {
+    const output = (await asr(samples, {
+      // English-only models refuse these options.
+      ...(isEnglishOnly || !withLanguage
+        ? {}
+        : { language: language ?? "en", task: "transcribe" as const })
+    })) as { text?: string } | string
+    return typeof output === "string" ? output : (output?.text ?? "")
+  }
+
+  let text: string
+  try {
+    text = await run(true)
+  } catch (err) {
+    // The model refused the language. Whisper only knows two-letter codes,
+    // so a bad value must not stop the recognition altogether.
+    log.warn(`the model rejected the language — trying without it: ${String(err).slice(0, 160)}`)
+    text = await run(false)
+  }
+
   return { text: text.trim(), durationMs: Date.now() - started, model: modelId }
 }
 

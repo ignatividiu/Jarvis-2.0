@@ -662,7 +662,12 @@ export interface JarvisApi {
     install(): Promise<{ ok: boolean; message: string }>
     pull(tag: string): Promise<LocalStatus>
     remove(tag: string): Promise<LocalStatus>
-    restart(): Promise<LocalStatus>
+    /** Start the local model runtime. */
+    start(): Promise<{ ok: boolean; message: string }>
+    /** Stop the local model runtime. */
+    stop(): Promise<{ ok: boolean; message: string }>
+    /** Stop and start the local model runtime. */
+    restart(): Promise<{ ok: boolean; message: string }>
   }
   websearch: {
     search(query: string, engine?: string): Promise<SearchResponse>
