@@ -1,38 +1,65 @@
 /**
- * Wake word detection.
+ * Trigger phrase detection.
  *
  * The assistant hears an utterance, the local recogniser turns it into text,
  * and this module decides whether the utterance was addressed to JARVIS.
  *
- * The trigger is a *phrase*, not a single word — the default is "Hey
- * jarvis". Speech recognisers rarely spell a name exactly the way it is
- * written, so the matcher accepts near-misses: "jarvis", "jarvus",
- * "jervis", "jarvez" and friends all count. A Levenshtein distance keeps
- * the rule general without needing a dictionary of every accent and
- * mis-hearing.
+ * The trigger is a *phrase* — the default is "Hey jarvis". The rule is
+ * deliberately forgiving about the words in front of the name and strict
+ * about where the name sits:
+ *
+ *  - The name may appear anywhere in the opening words, but everything
+ *    before it has to be a filler ("hey", "ok", "please", "so", …).
+ *    That way "a jarvis, open the door" and "ok so jarvis" both work, while
+ *    "tell me about jarvis" does not.
+ *  - The name itself is matched loosely, because speech recognisers rarely
+ *    spell it the way it is written: "jarvus", "jervis" and "harvis" all
+ *    count.
  */
 
 /** Minimum word length before fuzzy matching is allowed. */
 const MIN_FUZZY_LENGTH = 4
 
-/** Maximum edit distance that still counts as the wake word. */
+/** Maximum edit distance that still counts as the name. */
 const MAX_EDIT_DISTANCE = 2
 
 /**
- * How many words from the start may contain the trigger.
- *
- * The name has to be near the beginning, so that "tell me about Jarvis"
- * does not wake the assistant up.
+ * How many words from the start the name may appear in.
  */
-const WAKE_WORD_WINDOW = 4
+const TRIGGER_WINDOW = 4
 
 /**
- * Fillers that may sit in front of the trigger.
+ * Words that may come before the name.
  *
- * A phrase such as "hey jarvis" is matched with or without its leading
- * filler, so "jarvis, open the door" works just as well.
+ * The list is deliberately generous — these are the sounds people put in
+ * front of a name when they are addressing a machine.
  */
-const LEADING_FILLERS = new Set(["hey", "hi", "hello", "ok", "okay", "yo", "computer", "assistant"])
+const LEADING_FILLERS = new Set([
+  "hey",
+  "hi",
+  "hello",
+  "ok",
+  "okay",
+  "yo",
+  "computer",
+  "assistant",
+  "please",
+  "now",
+  "well",
+  "so",
+  "right",
+  "um",
+  "uh",
+  "hmm",
+  "ah",
+  "oh",
+  "there",
+  "a",
+  "an",
+  "just",
+  "morning",
+  "evening"
+])
 
 /** Transcriptions that are commonly produced for "jarvis". */
 const KNOWN_VARIANTS = new Set([
@@ -114,25 +141,17 @@ export function parseTrigger(phrase: string): string[] {
     .filter(Boolean)
 }
 
-/**
- * Does this word match this part of the trigger?
- *
- * The last word of a trigger is matched loosely, because that is the name
- * that gets mis-heard. The words in front of it are matched exactly, so
- * "hey" does not fire on "hockey".
- */
-function wordMatches(candidate: string, target: string, loose: boolean): boolean {
-  if (candidate === target) return true
-  if (!loose) return false
-  return isWakeWord(candidate, target)
+/** Is this word a filler that may come before the name? */
+export function isFiller(word: string): boolean {
+  return LEADING_FILLERS.has(normaliseWord(word))
 }
 
 /**
  * Look for the trigger phrase in an utterance.
  *
- * The phrase has to appear near the start, and everything before it is
- * discarded. A leading filler — "hey" in "hey jarvis" — is optional, so
- * "Jarvis, what time is it" also wakes the assistant.
+ * The last word of the phrase is the name; the words before it are a prefix.
+ * The name is matched loosely and must be in the opening words, with only
+ * fillers in front of it.
  */
 export function matchWakeWord(utterance: string, wakeWord: string): WakeMatch {
   const text = (utterance ?? "").trim()
@@ -141,64 +160,44 @@ export function matchWakeWord(utterance: string, wakeWord: string): WakeMatch {
   const trigger = parseTrigger(wakeWord)
   if (!trigger.length) return { matched: false, command: text }
 
+  const name = trigger[trigger.length - 1]
   const words = text.split(/\s+/)
-  const limit = Math.min(words.length, WAKE_WORD_WINDOW + trigger.length)
+  const limit = Math.min(words.length, TRIGGER_WINDOW)
 
-  // The phrase may be spoken with or without its leading filler.
-  const variants: string[][] = [trigger]
-  if (trigger.length > 1 && LEADING_FILLERS.has(normaliseWord(trigger[0]))) {
-    variants.push(trigger.slice(1))
-  }
+  for (let i = 0; i < limit; i++) {
+    if (!isWakeWord(words[i], name)) continue
 
-  for (const variant of variants) {
-    // The shortened variant drops the leading filler, so it may only match
-    // where a filler would have been — otherwise "tell me about jarvis"
-    // would wake the assistant up.
-    const shortened = variant.length < trigger.length
-
-    for (let start = 0; start + variant.length <= limit; start++) {
-      if (shortened) {
-        let onlyFillers = true
-        for (let k = 0; k < start; k++) {
-          if (!LEADING_FILLERS.has(normaliseWord(words[k]))) {
-            onlyFillers = false
-            break
-          }
-        }
-        if (!onlyFillers) continue
+    // Everything in front of the name has to be a filler, or the name is
+    // part of a sentence rather than an address.
+    let onlyFillers = true
+    for (let k = 0; k < i; k++) {
+      if (!isFiller(words[k])) {
+        onlyFillers = false
+        break
       }
-
-      let ok = true
-      for (let k = 0; k < variant.length; k++) {
-        const loose = k === variant.length - 1
-        if (!wordMatches(normaliseWord(words[start + k]), normaliseWord(variant[k]), loose)) {
-          ok = false
-          break
-        }
-      }
-      if (!ok) continue
-
-      // Everything after the trigger is the command.
-      const command = words
-        .slice(start + variant.length)
-        .join(" ")
-        .replace(/^[\s,.:;-]+/, "")
-        .trim()
-      return { matched: true, command, matchedWords: words.slice(start, start + variant.length) }
     }
+    if (!onlyFillers) continue
+
+    // The command is everything after the name.
+    const command = words
+      .slice(i + 1)
+      .join(" ")
+      .replace(/^[\s,.:;-]+/, "")
+      .trim()
+    return { matched: true, command, matchedWords: words.slice(i, i + 1) }
   }
 
   return { matched: false, command: text }
 }
 
 /**
- * Wake word matching for the "open" mode, where the assistant answers every
+ * Trigger matching for the "open" mode, where the assistant answers every
  * utterance. There is nothing to strip, but the leading fillers are still
  * removed so the reply does not start with "hey".
  */
 export function stripFillers(utterance: string): string {
   const words = (utterance ?? "").trim().split(/\s+/)
   let index = 0
-  while (index < words.length && LEADING_FILLERS.has(normaliseWord(words[index]))) index++
+  while (index < words.length && isFiller(words[index])) index++
   return words.slice(index).join(" ").trim()
 }

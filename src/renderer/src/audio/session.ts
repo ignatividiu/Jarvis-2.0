@@ -652,7 +652,7 @@ class VoiceSession {
 
       if (result.ok && result.clipId) {
         const url = `jarvismedia://speech/${encodeURIComponent(result.clipId)}`
-        return await this.playClip(url)
+        return await this.playClipUrl(url)
       }
 
       if (result.error) this.set({ error: result.error })
@@ -686,23 +686,20 @@ class VoiceSession {
   /**
    * Play a clip.
    *
-   * The Web Audio path is tried first, because the visualiser reacts to the
-   * speech. If the clip cannot be decoded it is played with a plain media
-   * element instead, which goes straight to the system output — the
-   * assistant must be audible even when the graph misbehaves.
+   * Three paths, in order of how visual they are:
+   *
+   *  1. The Web Audio graph — the visualiser reacts to the speech.
+   *  2. A media element routed through the graph — same, but the browser
+   *     decodes the file itself.
+   *  3. A media element straight to the system output — the most reliable
+   *     way to be heard, and the fallback when the graph is not available.
    */
   private async playClipUrl(url: string): Promise<boolean> {
     const buffer = await audioEngine.decode(url)
-    if (buffer) {
-      await audioEngine.playBuffer(buffer)
-      return true
-    }
+    if (buffer && (await audioEngine.playBuffer(buffer))) return true
 
-    // The decoder refused the clip. Play it directly.
-    const played = await audioEngine.playWithElement(url, true)
-    if (played) return true
-
-    // Last resort: bypass the graph completely.
+    // The decoder or the graph refused it — play it directly.
+    if (await audioEngine.playWithElement(url, true)) return true
     return audioEngine.playWithElement(url, false)
   }
 

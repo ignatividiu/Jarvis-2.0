@@ -3,17 +3,32 @@ import { appendFileSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
 
 let logPath = ""
+/** The data folder the log was opened in. */
+let logDir = ""
 /** Guards against a failing console triggering an endless error loop. */
 let consoleBroken = false
 
 function ensure(): void {
-  if (logPath) return
+  // The app moves its data folder to its own on start-up, so the path has
+  // to be re-resolved when that happens — otherwise the log ends up in the
+  // wrong place.
+  let current = ""
   try {
-    const dir = join(app.getPath("userData"), "logs")
+    current = app.getPath("userData")
+  } catch {
+    current = ""
+  }
+
+  if (logPath && current === logDir) return
+
+  try {
+    const dir = join(current, "logs")
     mkdirSync(dir, { recursive: true })
     logPath = join(dir, "jarvis.log")
+    logDir = current
   } catch {
     logPath = ""
+    logDir = current
   }
 }
 

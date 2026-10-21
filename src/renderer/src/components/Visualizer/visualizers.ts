@@ -1,23 +1,38 @@
 /**
  * Canvas visualisers.
  *
- * Each mode draws a different picture of the same audio: the live level, the
- * spectrum and the recent waveform. They all read the shared audio engine,
- * so the picture follows whatever JARVIS is doing.
+ * Every preset is built on a different shape, so they read as different
+ * instruments rather than variations on a circle:
+ *
+ *   orb      a drifting particle cloud
+ *   core     concentric rings and rotating spokes
+ *   spectrum vertical bars
+ *   scope    an oscilloscope trace
+ *   lattice  a grid of cells that light up
+ *   tunnel   a perspective tunnel
+ *   star     radial spikes
+ *   aurora   flowing horizontal bands
+ *   lissajous a parametric curve
+ *   rain     falling glyphs
+ *   petals   overlapping soft ellipses
+ *   peaks    a mirrored mountain
+ *   spiral   a spiral of dots
  */
 
 export type VisualizerMode =
   | "orb"
-  | "reactor"
-  | "bars"
-  | "waveform"
-  | "grid"
-  | "pulse"
-  | "radial"
-  | "ribbon"
-  | "helix"
-  | "matrix"
-  | "bloom"
+  | "core"
+  | "spectrum"
+  | "scope"
+  | "lattice"
+  | "tunnel"
+  | "star"
+  | "aurora"
+  | "lissajous"
+  | "rain"
+  | "petals"
+  | "peaks"
+  | "spiral"
 
 export interface VisualizerModeInfo {
   id: VisualizerMode
@@ -27,16 +42,18 @@ export interface VisualizerModeInfo {
 
 export const VISUALIZER_MODES: VisualizerModeInfo[] = [
   { id: "orb", label: "Orb", icon: "blur_circular" },
-  { id: "reactor", label: "Reactor", icon: "radio_button_checked" },
-  { id: "pulse", label: "Pulse", icon: "waves" },
-  { id: "radial", label: "Radial", icon: "donut_large" },
-  { id: "bloom", label: "Bloom", icon: "local_florist" },
-  { id: "helix", label: "Helix", icon: "sync" },
-  { id: "ribbon", label: "Ribbon", icon: "linear_scale" },
-  { id: "bars", label: "Spectrum", icon: "equalizer" },
-  { id: "waveform", label: "Waveform", icon: "graphic_eq" },
-  { id: "grid", label: "Grid", icon: "grid_on" },
-  { id: "matrix", label: "Matrix", icon: "terminal" }
+  { id: "core", label: "Core", icon: "radio_button_checked" },
+  { id: "tunnel", label: "Tunnel", icon: "moving" },
+  { id: "star", label: "Star", icon: "flare" },
+  { id: "petals", label: "Petals", icon: "local_florist" },
+  { id: "lissajous", label: "Lissajous", icon: "timeline" },
+  { id: "spectrum", label: "Spectrum", icon: "equalizer" },
+  { id: "scope", label: "Scope", icon: "graphic_eq" },
+  { id: "peaks", label: "Peaks", icon: "bar_chart" },
+  { id: "aurora", label: "Aurora", icon: "linear_scale" },
+  { id: "lattice", label: "Lattice", icon: "grid_on" },
+  { id: "spiral", label: "Spiral", icon: "rotate_right" },
+  { id: "rain", label: "Rain", icon: "terminal" }
 ]
 
 export interface VisualContext {
@@ -90,7 +107,8 @@ function bandAt(freq: Uint8Array, index: number, count: number): number {
   return (freq[Math.floor(position)] ?? 0) / 255
 }
 
-/* ─────────────────────────────  Orb  ───────────────────────────── */
+/* ─────────────────────────  Orb  ─────────────────────────
+   A drifting cloud of particles around a bright core. */
 
 export function drawOrb(v: VisualContext, particles: OrbParticle[]): void {
   const { ctx, width, height, time, level, accent, cyan } = v
@@ -100,34 +118,31 @@ export function drawOrb(v: VisualContext, particles: OrbParticle[]): void {
 
   ctx.clearRect(0, 0, width, height)
 
-  // The glow behind the core.
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * 1.5)
-  glow.addColorStop(0, withAlpha(accent, 0.22 + level * 0.3))
-  glow.addColorStop(0.5, withAlpha(cyan, 0.07))
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * 1.4)
+  glow.addColorStop(0, withAlpha(accent, 0.2 + level * 0.28))
+  glow.addColorStop(0.55, withAlpha(cyan, 0.06))
   glow.addColorStop(1, "rgba(0,0,0,0)")
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, width, height)
 
-  // The particles.
   for (const p of particles) {
-    const wobble = Math.sin(time * p.speed + p.offset) * 0.08
-    const r = base * (0.22 + p.radius * (0.5 + level * 0.55) + wobble)
+    const wobble = Math.sin(time * p.speed + p.offset) * 0.1
+    const r = base * (0.2 + p.radius * (0.45 + level * 0.5) + wobble)
     const a = p.angle + time * 0.12 * p.speed
     const x = cx + Math.cos(a) * r
-    const y = cy + Math.sin(a) * r * 0.86
-    const size = p.size * (1 + level * 2.4)
+    const y = cy + Math.sin(a) * r * 0.82
+    const size = p.size * (1 + level * 2.2)
 
     ctx.beginPath()
     ctx.arc(x, y, size, 0, Math.PI * 2)
-    ctx.fillStyle = withAlpha(p.offset % 2 < 1 ? accent : cyan, 0.25 + level * 0.6)
+    ctx.fillStyle = withAlpha(p.offset % 2 < 1 ? accent : cyan, 0.22 + level * 0.6)
     ctx.fill()
   }
 
-  // The core.
-  const coreR = base * (0.1 + level * 0.2)
+  const coreR = base * (0.09 + level * 0.17)
   const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR)
   core.addColorStop(0, withAlpha("#ffffff", 0.9))
-  core.addColorStop(0.35, withAlpha(accent, 0.85))
+  core.addColorStop(0.35, withAlpha(accent, 0.8))
   core.addColorStop(1, withAlpha(cyan, 0))
   ctx.beginPath()
   ctx.arc(cx, cy, coreR, 0, Math.PI * 2)
@@ -135,9 +150,10 @@ export function drawOrb(v: VisualContext, particles: OrbParticle[]): void {
   ctx.fill()
 }
 
-/* ───────────────────────────  Reactor  ─────────────────────────── */
+/* ─────────────────────────  Core  ─────────────────────────
+   Concentric rings with rotating spokes. */
 
-export function drawReactor(v: VisualContext): void {
+export function drawCore(v: VisualContext): void {
   const { ctx, width, height, time, level, frequency, accent, cyan } = v
   const cx = width / 2
   const cy = height / 2
@@ -145,74 +161,66 @@ export function drawReactor(v: VisualContext): void {
 
   ctx.clearRect(0, 0, width, height)
 
-  // Concentric rings that pulse with the level.
   for (let i = 0; i < 5; i++) {
-    const r = base * (0.2 + i * 0.16) * (1 + level * 0.35)
+    const r = base * (0.18 + i * 0.16) * (1 + level * 0.3)
     ctx.beginPath()
     ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.strokeStyle = withAlpha(i % 2 ? cyan : accent, 0.22 + level * 0.5)
+    ctx.strokeStyle = withAlpha(i % 2 ? cyan : accent, 0.2 + level * 0.45)
     ctx.lineWidth = 1.5 + level * 2
     ctx.stroke()
   }
 
-  // The rotating spokes.
   const spokes = 12
   for (let i = 0; i < spokes; i++) {
     const a = (i / spokes) * Math.PI * 2 + time * (0.3 + frequency)
     ctx.beginPath()
-    ctx.moveTo(cx + Math.cos(a) * base * 0.14, cy + Math.sin(a) * base * 0.14)
-    ctx.lineTo(cx + Math.cos(a) * base * (0.3 + level * 0.4), cy + Math.sin(a) * base * (0.3 + level * 0.4))
-    ctx.strokeStyle = withAlpha(accent, 0.18 + level * 0.45)
+    ctx.moveTo(cx + Math.cos(a) * base * 0.12, cy + Math.sin(a) * base * 0.12)
+    ctx.lineTo(cx + Math.cos(a) * base * (0.28 + level * 0.38), cy + Math.sin(a) * base * (0.28 + level * 0.38))
+    ctx.strokeStyle = withAlpha(accent, 0.16 + level * 0.4)
     ctx.lineWidth = 1.2
     ctx.stroke()
   }
 
-  // The centre.
   ctx.beginPath()
-  ctx.arc(cx, cy, base * (0.08 + level * 0.14), 0, Math.PI * 2)
-  ctx.fillStyle = withAlpha(accent, 0.65 + level * 0.35)
+  ctx.arc(cx, cy, base * (0.07 + level * 0.12), 0, Math.PI * 2)
+  ctx.fillStyle = withAlpha(accent, 0.6 + level * 0.35)
   ctx.fill()
 }
 
-/* ────────────────────────────  Pulse  ──────────────────────────── */
+/* ───────────────────────  Tunnel  ───────────────────────
+   A perspective tunnel: concentric squares flying towards the viewer. */
 
-export function drawPulse(v: VisualContext): void {
-  const { ctx, width, height, time, level, accent, cyan } = v
+export function drawTunnel(v: VisualContext): void {
+  const { ctx, width, height, time, level, freq, accent, cyan } = v
   const cx = width / 2
   const cy = height / 2
-  const base = Math.min(width, height) * 0.5
+  const base = Math.min(width, height) * 0.62
 
   ctx.clearRect(0, 0, width, height)
 
-  // Rings that travel outwards, driven by the level.
-  const rings = 6
+  const rings = 14
   for (let i = 0; i < rings; i++) {
-    const phase = (time * 0.45 + i / rings) % 1
-    const r = base * (0.12 + phase * 0.85) * (1 + level * 0.25)
-    const fade = (1 - phase) * (0.25 + level * 0.6)
+    const band = bandAt(freq, i, rings)
+    // Each ring is at its own depth, travelling outwards.
+    const phase = (time * (0.22 + band * 0.9) + i / rings) % 1
+    const depth = 0.08 + phase * 0.92
+    const size = base * depth
+    const fade = (1 - phase) * (0.16 + level * 0.55)
 
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.strokeStyle = withAlpha(i % 2 ? cyan : accent, fade)
-    ctx.lineWidth = 2.5 * (1 - phase) + 0.5
-    ctx.stroke()
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate(time * 0.15 + i * 0.22)
+    ctx.strokeStyle = withAlpha(i % 3 === 0 ? cyan : accent, fade)
+    ctx.lineWidth = 1 + band * 2.5
+    ctx.strokeRect(-size, -size, size * 2, size * 2)
+    ctx.restore()
   }
-
-  // A solid heart that beats with the level.
-  const beat = 1 + level * 0.5
-  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * 0.3 * beat)
-  gradient.addColorStop(0, withAlpha("#ffffff", 0.85))
-  gradient.addColorStop(0.4, withAlpha(accent, 0.8))
-  gradient.addColorStop(1, withAlpha(cyan, 0))
-  ctx.beginPath()
-  ctx.arc(cx, cy, base * 0.3 * beat, 0, Math.PI * 2)
-  ctx.fillStyle = gradient
-  ctx.fill()
 }
 
-/* ───────────────────────────  Radial  ─────────────────────────── */
+/* ─────────────────────────  Star  ─────────────────────────
+   Radial spikes from a central line. */
 
-export function drawRadial(v: VisualContext): void {
+export function drawStar(v: VisualContext): void {
   const { ctx, width, height, time, level, freq, accent, cyan } = v
   const cx = width / 2
   const cy = height / 2
@@ -220,37 +228,42 @@ export function drawRadial(v: VisualContext): void {
 
   ctx.clearRect(0, 0, width, height)
 
-  const count = 72
-  const inner = base * 0.28
+  const count = 96
   for (let i = 0; i < count; i++) {
     const value = bandAt(freq, i, count)
-    const a = (i / count) * Math.PI * 2 - Math.PI / 2 + time * 0.12
-    const length = base * (0.06 + value * 0.55) * (1 + level * 0.3)
-
-    const x1 = cx + Math.cos(a) * inner
-    const y1 = cy + Math.sin(a) * inner
-    const x2 = cx + Math.cos(a) * (inner + length)
-    const y2 = cy + Math.sin(a) * (inner + length)
+    const a = (i / count) * Math.PI * 2
+    const inner = base * 0.13
+    const outer = inner + base * (0.05 + value * 0.78) * (1 + level * 0.2)
 
     ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.strokeStyle = withAlpha(i % 3 === 0 ? cyan : accent, 0.25 + value * 0.7)
-    ctx.lineWidth = 3
+    ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
+    ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer)
+    ctx.strokeStyle = withAlpha(value > 0.55 ? cyan : accent, 0.3 + value * 0.65)
+    ctx.lineWidth = 2
     ctx.lineCap = "round"
     ctx.stroke()
   }
 
-  // The hub.
-  ctx.beginPath()
-  ctx.arc(cx, cy, inner * 0.85, 0, Math.PI * 2)
-  ctx.fillStyle = withAlpha(accent, 0.12 + level * 0.2)
-  ctx.fill()
+  // A slowly turning cross in the middle.
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(time * 0.4)
+  ctx.strokeStyle = withAlpha(accent, 0.3)
+  ctx.lineWidth = 1
+  for (let i = 0; i < 4; i++) {
+    ctx.rotate(Math.PI / 2)
+    ctx.beginPath()
+    ctx.moveTo(-base * 0.12, 0)
+    ctx.lineTo(base * 0.12, 0)
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
-/* ───────────────────────────  Bloom  ─────────────────────────── */
+/* ────────────────────────  Petals  ────────────────────────
+   Overlapping soft ellipses forming a flower. */
 
-export function drawBloom(v: VisualContext): void {
+export function drawPetals(v: VisualContext): void {
   const { ctx, width, height, time, level, freq, accent, cyan } = v
   const cx = width / 2
   const cy = height / 2
@@ -258,125 +271,91 @@ export function drawBloom(v: VisualContext): void {
 
   ctx.clearRect(0, 0, width, height)
 
-  const petals = 10
+  const petals = 9
   for (let i = 0; i < petals; i++) {
     const value = bandAt(freq, i, petals)
-    const a = (i / petals) * Math.PI * 2 + time * 0.18
-    const reach = base * (0.18 + value * 0.62) * (1 + level * 0.25)
-    const width2 = base * (0.1 + value * 0.16)
+    const a = (i / petals) * Math.PI * 2 + time * 0.14
+    const reach = base * (0.16 + value * 0.5) * (1 + level * 0.2)
+    const thickness = base * (0.09 + value * 0.13)
 
     ctx.save()
     ctx.translate(cx, cy)
     ctx.rotate(a)
     const gradient = ctx.createLinearGradient(0, 0, reach, 0)
-    gradient.addColorStop(0, withAlpha(cyan, 0.55))
-    gradient.addColorStop(1, withAlpha(accent, 0.05))
+    gradient.addColorStop(0, withAlpha(cyan, 0.5))
+    gradient.addColorStop(1, withAlpha(accent, 0.04))
     ctx.beginPath()
-    ctx.ellipse(reach * 0.5, 0, reach * 0.5, width2, 0, 0, Math.PI * 2)
+    ctx.ellipse(reach * 0.55, 0, reach * 0.55, thickness, 0, 0, Math.PI * 2)
     ctx.fillStyle = gradient
     ctx.fill()
     ctx.restore()
   }
 
   ctx.beginPath()
-  ctx.arc(cx, cy, base * 0.09 * (1 + level * 0.7), 0, Math.PI * 2)
-  ctx.fillStyle = withAlpha("#ffffff", 0.7)
+  ctx.arc(cx, cy, base * 0.08 * (1 + level * 0.8), 0, Math.PI * 2)
+  ctx.fillStyle = withAlpha("#ffffff", 0.65)
   ctx.fill()
 }
 
-/* ───────────────────────────  Helix  ─────────────────────────── */
+/* ───────────────────────  Lissajous  ───────────────────────
+   A parametric curve. */
 
-export function drawHelix(v: VisualContext): void {
+export function drawLissajous(v: VisualContext): void {
   const { ctx, width, height, time, level, freq, accent, cyan } = v
   const cx = width / 2
-  const base = Math.min(width, height) * 0.5
+  const cy = height / 2
+  const base = Math.min(width, height) * 0.42
 
   ctx.clearRect(0, 0, width, height)
 
-  const steps = 90
-  const points: Array<[number, number, number]> = []
+  const low = bandAt(freq, 0, 40)
+  const high = bandAt(freq, 20, 40)
+  const a = 1 + Math.round(low * 4)
+  const b = 2 + Math.round(high * 4)
+  const phase = time * (0.4 + level * 1.2)
 
-  for (let i = 0; i < steps; i++) {
-    const t = i / steps
-    const y = t * height
-    const band = bandAt(freq, Math.floor(t * 40), 40)
-    const twist = time * 1.1 + t * Math.PI * 3.2
-    const spread = base * (0.16 + band * 0.42) * (1 + level * 0.2)
-
-    points.push([cx + Math.cos(twist) * spread, y, band])
-    points.push([cx - Math.cos(twist) * spread, y, band])
+  ctx.beginPath()
+  const steps = 320
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * Math.PI * 2
+    const x = cx + Math.sin(a * t + phase) * base
+    const y = cy + Math.sin(b * t) * base
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
   }
+  ctx.strokeStyle = withAlpha(accent, 0.75)
+  ctx.lineWidth = 1.8
+  ctx.stroke()
 
-  // The two strands.
-  for (const strand of [0, 1]) {
-    ctx.beginPath()
-    for (let i = 0; i < steps; i++) {
-      const p = points[strand === 0 ? i * 2 : i * 2 + 1]
-      if (!p) continue
-      if (i === 0) ctx.moveTo(p[0], p[1])
-      else ctx.lineTo(p[0], p[1])
-    }
-    ctx.strokeStyle = withAlpha(strand === 0 ? accent : cyan, 0.65)
-    ctx.lineWidth = 2
-    ctx.stroke()
+  // A second curve, mirrored and in the other colour.
+  ctx.beginPath()
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * Math.PI * 2
+    const x = cx + Math.sin(b * t - phase) * base * 0.82
+    const y = cy + Math.sin(a * t) * base * 0.82
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
   }
-
-  // The rungs between them.
-  for (let i = 0; i < steps; i += 3) {
-    const a = points[i * 2]
-    const b = points[i * 2 + 1]
-    if (!a || !b) continue
-    ctx.beginPath()
-    ctx.moveTo(a[0], a[1])
-    ctx.lineTo(b[0], b[1])
-    ctx.strokeStyle = withAlpha(accent, 0.06 + a[2] * 0.3)
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
+  ctx.strokeStyle = withAlpha(cyan, 0.4)
+  ctx.lineWidth = 1.2
+  ctx.stroke()
 }
 
-/* ───────────────────────────  Ribbon  ─────────────────────────── */
+/* ───────────────────────  Spectrum  ───────────────────────
+   Vertical bars along the bottom. */
 
-export function drawRibbon(v: VisualContext): void {
-  const { ctx, width, height, time, level, wave, accent, cyan } = v
-  ctx.clearRect(0, 0, width, height)
-
-  const layers = 5
-  for (let layer = 0; layer < layers; layer++) {
-    const offset = layer / layers
-    ctx.beginPath()
-    for (let i = 0; i < wave.length; i++) {
-      const x = (i / (wave.length - 1)) * width
-      const value = (wave[i] - 128) / 128
-      const y =
-        height / 2 +
-        value * height * (0.14 + level * 0.22) * (1 - offset * 0.5) +
-        Math.sin(time * 1.2 + i * 0.02 + offset * 3) * height * 0.04 * (1 + level)
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-    }
-    ctx.strokeStyle = withAlpha(layer % 2 ? cyan : accent, 0.5 - offset * 0.28)
-    ctx.lineWidth = 2.5 - offset * 1.4
-    ctx.stroke()
-  }
-}
-
-/* ────────────────────────────  Bars  ──────────────────────────── */
-
-export function drawBars(v: VisualContext): void {
+export function drawSpectrum(v: VisualContext): void {
   const { ctx, width, height, level, freq, accent, cyan } = v
   ctx.clearRect(0, 0, width, height)
 
   const count = 42
   const gap = 3
   const barWidth = Math.max(2, (width - gap * (count - 1)) / count)
-  const usable = height * 0.82
+  const usable = height * 0.78
   const bottom = height * 0.9
 
   for (let i = 0; i < count; i++) {
-    // A logarithmic spread, so the low end is not squashed.
-    const index = Math.floor(Math.pow(i / count, 1.6) * (freq.length - 1))
-    const value = (freq[index] ?? 0) / 255
+    const value = bandAt(freq, i, count)
     const h = Math.max(2, value * usable * (0.65 + level * 0.5))
 
     const x = i * (barWidth + gap)
@@ -388,57 +367,127 @@ export function drawBars(v: VisualContext): void {
   }
 }
 
-/* ───────────────────────────  Waveform  ─────────────────────────── */
+/* ─────────────────────────  Scope  ─────────────────────────
+   An oscilloscope trace with a filled envelope. */
 
-export function drawWaveform(v: VisualContext): void {
+export function drawScope(v: VisualContext): void {
   const { ctx, width, height, time, level, wave, accent, cyan } = v
   ctx.clearRect(0, 0, width, height)
 
   const mid = height / 2
   const step = width / Math.max(1, wave.length - 1)
 
-  // The filled envelope.
   ctx.beginPath()
   ctx.moveTo(0, mid)
   for (let i = 0; i < wave.length; i++) {
-    const v2 = (wave[i] - 128) / 128
-    ctx.lineTo(i * step, mid + v2 * height * 0.42)
+    const value = (wave[i] - 128) / 128
+    ctx.lineTo(i * step, mid + value * height * 0.4)
   }
   ctx.lineTo(width, mid)
   ctx.closePath()
   ctx.fillStyle = withAlpha(accent, 0.12 + level * 0.2)
   ctx.fill()
 
-  // The line itself.
   ctx.beginPath()
   for (let i = 0; i < wave.length; i++) {
-    const v2 = (wave[i] - 128) / 128
-    const y = mid + v2 * height * 0.42
+    const value = (wave[i] - 128) / 128
+    const y = mid + value * height * 0.4
     if (i === 0) ctx.moveTo(0, y)
     else ctx.lineTo(i * step, y)
   }
-  ctx.strokeStyle = withAlpha(cyan, 0.85)
-  ctx.lineWidth = 1.4
+  ctx.strokeStyle = withAlpha(cyan, 0.9)
+  ctx.lineWidth = 1.5
   ctx.stroke()
 
-  // A sweeping highlight.
   const sweep = ((time * 0.35) % 1) * width
-  const highlight = ctx.createLinearGradient(sweep - 60, 0, sweep + 60, 0)
+  const highlight = ctx.createLinearGradient(sweep - 70, 0, sweep + 70, 0)
   highlight.addColorStop(0, "rgba(0,0,0,0)")
-  highlight.addColorStop(0.5, withAlpha(accent, 0.35))
+  highlight.addColorStop(0.5, withAlpha(accent, 0.3))
   highlight.addColorStop(1, "rgba(0,0,0,0)")
   ctx.fillStyle = highlight
   ctx.fillRect(0, 0, width, height)
 }
 
-/* ────────────────────────────  Grid  ──────────────────────────── */
+/* ─────────────────────────  Peaks  ─────────────────────────
+   A mirrored mountain range along the bottom. */
 
-export function drawGrid(v: VisualContext): void {
+export function drawPeaks(v: VisualContext): void {
+  const { ctx, width, height, level, freq, accent, cyan } = v
+  ctx.clearRect(0, 0, width, height)
+
+  const count = 56
+  const base = height * 0.82
+  const points: number[] = []
+
+  for (let i = 0; i < count; i++) {
+    const value = bandAt(freq, i, count)
+    // A little smoothing, so it looks like a landscape.
+    const previous = points[i - 1] ?? value
+    points.push(previous * 0.45 + value * 0.55)
+  }
+
+  for (const sign of [1, -1]) {
+    ctx.beginPath()
+    ctx.moveTo(0, base)
+    for (let i = 0; i < count; i++) {
+      const x = (i / (count - 1)) * width
+      const y = base - sign * points[i] * height * 0.3 * (0.7 + level * 0.4)
+      ctx.lineTo(x, y)
+    }
+    ctx.lineTo(width, base)
+    ctx.closePath()
+    ctx.fillStyle = withAlpha(sign > 0 ? accent : cyan, sign > 0 ? 0.3 : 0.14)
+    ctx.fill()
+  }
+
+  ctx.strokeStyle = withAlpha(accent, 0.6)
+  ctx.lineWidth = 1.2
+  ctx.beginPath()
+  for (let i = 0; i < count; i++) {
+    const x = (i / (count - 1)) * width
+    const y = base - points[i] * height * 0.3 * (0.7 + level * 0.4)
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.stroke()
+}
+
+/* ─────────────────────────  Aurora  ─────────────────────────
+   Flowing horizontal bands. */
+
+export function drawAurora(v: VisualContext): void {
   const { ctx, width, height, time, level, wave, accent, cyan } = v
   ctx.clearRect(0, 0, width, height)
 
-  const rows = 12
-  const cols = 26
+  const layers = 4
+  for (let layer = 0; layer < layers; layer++) {
+    const thickness = height * (0.07 + level * 0.05)
+    const baseY = height * (0.2 + layer * 0.2)
+
+    ctx.beginPath()
+    for (let x = 0; x <= width; x += 4) {
+      const t = x / width
+      const waveValue = wave[Math.floor(t * (wave.length - 1))] ?? 128
+      const y = baseY + ((waveValue - 128) / 128) * height * 0.12 + Math.sin(t * 4 + time + layer) * height * 0.05
+      if (x === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.strokeStyle = withAlpha(layer % 2 ? cyan : accent, 0.55 - layer * 0.09)
+    ctx.lineWidth = thickness
+    ctx.lineCap = "round"
+    ctx.stroke()
+  }
+}
+
+/* ────────────────────────  Lattice  ────────────────────────
+   A grid of cells that light up. */
+
+export function drawLattice(v: VisualContext): void {
+  const { ctx, width, height, time, level, wave, accent, cyan } = v
+  ctx.clearRect(0, 0, width, height)
+
+  const rows = 11
+  const cols = 24
   const cellW = width / cols
   const cellH = height / rows
 
@@ -446,11 +495,9 @@ export function drawGrid(v: VisualContext): void {
     for (let c = 0; c < cols; c++) {
       const index = Math.floor((c / cols) * (wave.length - 1))
       const value = Math.abs((wave[index] - 128) / 128)
-      const waveValue = value * (1 + level)
-
       const distance = Math.hypot(c - cols / 2, r - rows / 2) / (cols / 2)
       const pulse = Math.sin(time * 2 - distance * 6) * 0.5 + 0.5
-      const intensity = Math.min(1, waveValue * 1.6 + pulse * 0.16 * (1 - distance))
+      const intensity = Math.min(1, value * 1.6 + pulse * 0.16 * (1 - distance))
 
       if (intensity < 0.04) continue
       const size = cellW * 0.42 * (0.4 + intensity)
@@ -460,11 +507,38 @@ export function drawGrid(v: VisualContext): void {
   }
 }
 
-/* ───────────────────────────  Matrix  ─────────────────────────── */
+/* ─────────────────────────  Spiral  ─────────────────────────
+   A spiral of dots that winds in and out. */
+
+export function drawSpiral(v: VisualContext): void {
+  const { ctx, width, height, time, level, freq, accent, cyan } = v
+  const cx = width / 2
+  const cy = height / 2
+  const base = Math.min(width, height) * 0.46
+
+  ctx.clearRect(0, 0, width, height)
+
+  const count = 190
+  for (let i = 0; i < count; i++) {
+    const t = i / count
+    const band = bandAt(freq, Math.floor(t * 40), 40)
+    const angle = t * Math.PI * 7 + time * 0.5
+    const radius = base * (0.06 + t * 0.94)
+    const size = 1 + band * 4 * (1 + level)
+
+    ctx.beginPath()
+    ctx.arc(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius, size, 0, Math.PI * 2)
+    ctx.fillStyle = withAlpha(t > 0.6 ? cyan : accent, 0.2 + band * 0.7)
+    ctx.fill()
+  }
+}
+
+/* ──────────────────────────  Rain  ──────────────────────────
+   Falling glyphs. */
 
 const GLYPHS = "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789"
 
-export function drawMatrix(v: VisualContext): void {
+export function drawRain(v: VisualContext): void {
   const { ctx, width, height, time, level, freq, accent, cyan } = v
   ctx.clearRect(0, 0, width, height)
 
@@ -476,7 +550,6 @@ export function drawMatrix(v: VisualContext): void {
   ctx.textBaseline = "top"
 
   for (let c = 0; c < columns; c++) {
-    // Each column falls at its own speed and lights up with its own band.
     const band = bandAt(freq, c, columns)
     const speed = 0.25 + band * 2.4
     const offset = (time * speed + c * 7) % (rows + 6)
@@ -493,7 +566,6 @@ export function drawMatrix(v: VisualContext): void {
     }
   }
 
-  // A wash of colour at the bottom, driven by the level.
   const wash = ctx.createLinearGradient(0, height * 0.6, 0, height)
   wash.addColorStop(0, withAlpha(accent, 0))
   wash.addColorStop(1, withAlpha(accent, 0.05 + level * 0.14))

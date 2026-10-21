@@ -148,6 +148,18 @@ quick pickers for both. The selected speaker is applied with `AudioContext.setSi
 covers every engine, including the offline one. The system's own speech engine always uses the
 default output — that is a limitation of the operating system, not of the app.
 
+A few details that matter for actually hearing the assistant:
+
+- The speaker id `default` means "do not redirect", so it is never passed to the platform. Asking
+  for a device literally called *default* can leave the audio pointed at nothing.
+- If the chosen speaker is unplugged, the app notices and falls back to the system default rather
+  than staying silent.
+- The audio is connected to the output **directly**; the analyser only taps the signal for the
+  visualiser. Leaving the analyser to pass the sound on is a classic way to end up with a
+  visualiser that moves and a speaker that stays silent.
+- The **Test** button in the voice dock plays a phrase through the whole path, so you can check the
+  voice without having to say something first.
+
 ---
 
 ## The models
@@ -310,6 +322,7 @@ The window is three columns: the narrow sidebar, the chat, and the visualiser.
 - The **chat sits on a side** and can be moved from the left to the right, or back, from the
   visualiser's own toolbar or from Settings → Preferences.
 - The visualiser can be made **large, medium or small**, again from the toolbar or the settings.
+- The chat column is deliberately narrow, so the visualiser gets the room it deserves.
 - The assistant's status, the model sources and the local runtime live underneath the visualiser, so
   the whole picture is in one place.
 
@@ -317,11 +330,13 @@ Every panel scrolls independently, so nothing is ever cut off when the window is
 
 ### Visualisers
 
-Eleven presets react to the live audio — the microphone when you are speaking, the assistant's own
-voice when it is replying:
+Thirteen presets, each built on a different shape so they read as different
+instruments rather than variations on a circle:
 
-`Orb` · `Reactor` · `Pulse` · `Radial` · `Bloom` · `Helix` · `Ribbon` · `Spectrum` · `Waveform` ·
-`Grid` · `Matrix`
+`Orb` (a drifting particle cloud) · `Core` (rings and spokes) · `Tunnel` (a perspective
+tunnel) · `Star` (radial spikes) · `Petals` (a soft flower) · `Lissajous` (a parametric curve) ·
+`Spectrum` (bars) · `Scope` (an oscilloscope) · `Peaks` (a mirrored mountain) · `Aurora` (flowing
+bands) · `Lattice` (a grid of cells) · `Spiral` (a spiral of dots) · `Rain` (falling glyphs)
 
 The visualiser can be expanded to fill the whole window, which turns the assistant into an ambient
 display.
@@ -555,15 +570,21 @@ device names become visible.
 
 **The trigger does not fire.**
 The trigger is now the phrase **“Hey jarvis”** — if your settings still hold the old single word it
-is migrated automatically, but you can change it in the Voice tab. Make sure the confirmation sound
-is on: the chime tells you the trigger was heard, and the soft note tells you something was heard
-but the trigger was not in it. If neither plays, the microphone is not picking you up. Raising
-**Sensitivity** in the Voice tab makes the detector trigger more easily.
+is migrated automatically, but you can change it in the Voice tab. The matcher is deliberately
+forgiving: the name may be preceded by fillers (*hey*, *ok*, *please*, *so*, …) and it is matched
+loosely, so *"a jarvis, open the door"* and *"jarvus, open the door"* both work — while *"tell me
+about jarvis"* does not.
+
+Make sure the confirmation sound is on: the chime tells you the trigger was heard, and the soft
+note tells you something was heard but the trigger was not in it. If neither plays, the microphone is
+not picking you up. Raising **Sensitivity** in the Voice tab makes the detector trigger more easily.
 
 **The assistant does not speak.**
 Look at the log at `%APPDATA%/jarvis-2.0/logs/jarvis.log`. The line
-`[jarvis] played N.NNs of audio` means the clip was played; if it is missing, the engine failed.
-`npm run test:voice` checks the whole chain.
+`[jarvis] played N.NNs of audio (1 source(s) on the output)` means the clip reached the speakers;
+if the source count is zero, the graph was not connected. If the line is missing entirely, the engine
+failed. `npm run test:voice` checks the whole chain, and the **Test** button in the voice dock
+plays a phrase through the real path.
 
 **The models are not working.**
 Open Settings → Model providers and press **Test every source**. A provider that needs a key will

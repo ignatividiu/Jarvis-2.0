@@ -221,12 +221,18 @@ async function testWakeWord() {
     ["Jarvis what is the time", "what is the time"],
     ["hey jarvis open the door", "open the door"],
     ["Hey Jarvis, open the door", "open the door"],
+    ["hey there jarvis open the door", "open the door"],
     ["ok jarvis play some music", "play some music"],
+    ["ok so jarvis what time is it", "what time is it"],
+    ["a jarvis open the door", "open the door"],
+    ["please jarvis open the door", "open the door"],
     ["jarvus what time is it", "what time is it"],
     ["jervis play some music", "play some music"],
+    ["harvis open the door", "open the door"],
     ["tell me about jarvis", null],
     ["the weather is nice today", null],
-    ["hey how are you doing today", null]
+    ["hey how are you doing today", null],
+    ["i spoke to jarvis yesterday", null]
   ]
 
   let ok = true

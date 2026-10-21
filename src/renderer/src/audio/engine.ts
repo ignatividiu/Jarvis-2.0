@@ -24,6 +24,8 @@ export const CAPTURE_SAMPLE_RATE = 16000
 
 interface SinkCapableContext extends AudioContext {
   setSinkId?: (deviceId: string) => Promise<void>
+  /** The device the context is currently routed to. */
+  sinkId?: string
 }
 
 class AudioEngine {
@@ -89,10 +91,9 @@ class AudioEngine {
       this.analyser.smoothingTimeConstant = 0.78
       this.data = new Uint8Array(new ArrayBuffer(this.analyser.fftSize))
       this.freq = new Uint8Array(new ArrayBuffer(this.analyser.frequencyBinCount))
-      // The analyser is a pass-through node, so it has to be connected to the
-      // destination for anything to be heard. Without this the audio is
-      // measured by the visualiser but never reaches the speakers.
-      this.analyser.connect(this.playbackCtx.destination)
+      // The analyser is a leaf: it taps the signal for the visualiser and
+      // sends nothing on. The audio itself is connected to the destination
+      // where it is played.
       this.outputWired = true
     }
     return this.playbackCtx
@@ -281,17 +282,30 @@ registerProcessor('jarvis-capture', JarvisCaptureProcessor)
    * Route all generated audio to a chosen speaker.
    *
    * Chromium implements `setSinkId` on the audio context, which covers every
-   * source the app plays — the decoded clips, the fallback element and the
-   * visualiser alike.
+   * source the app plays. The device id "default" — which is what the device
+   * picker reports for the system output — means "do not redirect", so it is
+   * never passed on: asking the platform for a literal device called
+   * "default" can leave the context pointed at nothing at all, and the
+   * assistant goes silent.
    */
   async setOutputDevice(deviceId: string): Promise<void> {
-    this.outputDeviceId = deviceId
+    const target = deviceId && deviceId !== "default" ? deviceId : ""
+    this.outputDeviceId = target
     const ctx = this.ensurePlaybackContext() as SinkCapableContext
     if (typeof ctx.setSinkId !== "function") return
+
     try {
-      await ctx.setSinkId(deviceId || "")
-    } catch {
-      /* the device may have disappeared — the default output is fine */
+      await ctx.setSinkId(target)
+      // The platform sometimes accepts an id it cannot actually use.
+      if (ctx.sinkId && ctx.sinkId !== target) {
+        console.warn(`[jarvis] the speaker could not be changed — using the default`)
+        await ctx.setSinkId("")
+        this.outputDeviceId = ""
+      }
+    } catch (err) {
+      console.warn("[jarvis] the speaker could not be changed — using the default:", err)
+      this.outputDeviceId = ""
+      await ctx.setSinkId("").catch(() => undefined)
     }
   }
 
@@ -301,25 +315,36 @@ registerProcessor('jarvis-capture', JarvisCaptureProcessor)
     if (this.outputSource) return
     try {
       this.outputSource = ctx.createMediaElementSource(element)
+      // Taking the element's output into the graph diverts it from the
+      // speakers, so the graph has to pass it on again.
       if (this.analyser) this.outputSource.connect(this.analyser)
+      this.outputSource.connect(ctx.destination)
       this.source = "output"
+      this.outputWired = true
     } catch {
       /* the element may already be attached — ignore */
     }
   }
 
   /**
-   * Play a decoded audio buffer through the analyser.
+   * Play a decoded audio buffer.
    *
-   * Decoding the clip ourselves means the visualiser sees the speech even
-   * though the audio arrived over a custom protocol.
+   * Returns false when the audio graph could not be used, so the caller can
+   * fall back to a plain media element — that path goes straight to the
+   * system output and is the most reliable way to be heard.
    */
-  async playBuffer(buffer: AudioBuffer): Promise<void> {
+  async playBuffer(buffer: AudioBuffer): Promise<boolean> {
     const ctx = this.ensurePlaybackContext()
     if (ctx.state !== "running") {
       await ctx.resume().catch(() => undefined)
     }
-    if (!this.analyser) return
+    if (!this.analyser) return false
+
+    // A context that will not run produces no sound at all.
+    if (ctx.state !== "running") {
+      console.warn("[jarvis] the audio context could not be started")
+      return false
+    }
 
     if (!this.outputWired) {
       // Without this the clip would be measured but never heard.
@@ -328,20 +353,36 @@ registerProcessor('jarvis-capture', JarvisCaptureProcessor)
 
     const source = ctx.createBufferSource()
     source.buffer = buffer
+    // Two separate paths: the analyser only taps the signal for the
+    // visualiser, and the destination receives the audio directly. Leaving
+    // the analyser to pass the sound on is the classic way to end up with a
+    // visualiser that moves and a speaker that stays silent.
     source.connect(this.analyser)
+    source.connect(ctx.destination)
     this.source = "output"
     this.activeSource = source
+
+    // The number of inputs on the destination counts the sources that are
+    // really wired to the speakers, which is the only way to be sure the
+    // audio is not just being measured and thrown away.
+    const inputs = ctx.destination.numberOfInputs
+    if (inputs < 1) {
+      console.warn("[jarvis] the audio is not connected to the speakers")
+    }
 
     await new Promise<void>((resolve) => {
       source.onended = () => {
         this.activeSource = null
         if (this.source === "output") this.source = "none"
         // The clip reached the end of the graph, so it was really played.
-        console.info(`[jarvis] played ${buffer.duration.toFixed(2)}s of audio`)
+        console.info(
+          `[jarvis] played ${buffer.duration.toFixed(2)}s of audio (${inputs} source(s) on the output)`
+        )
         resolve()
       }
       source.start()
     })
+    return true
   }
 
   /**
@@ -362,13 +403,25 @@ registerProcessor('jarvis-capture', JarvisCaptureProcessor)
       this.attachOutput(el)
     }
 
+    // The element can carry its own output device, which is more reliable
+    // than redirecting the whole context.
+    if (this.outputDeviceId) {
+      const sink = el as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }
+      if (typeof sink.setSinkId === "function") {
+        await sink.setSinkId(this.outputDeviceId).catch(() => undefined)
+      }
+    }
+
     return new Promise<boolean>((resolve) => {
       const done = (ok: boolean): void => {
         el.removeEventListener("ended", onEnded)
         el.removeEventListener("error", onError)
         resolve(ok)
       }
-      const onEnded = (): void => done(true)
+      const onEnded = (): void => {
+        console.info("[jarvis] played the clip through the system output")
+        done(true)
+      }
       const onError = (): void => {
         console.warn("[jarvis] the audio element could not play the clip")
         done(false)

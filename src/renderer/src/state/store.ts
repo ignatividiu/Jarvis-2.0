@@ -129,6 +129,19 @@ export const useJarvis = create<JarvisState>((set, get) => ({
   refreshDevices: async () => {
     const devices = await window.jarvis.audio.devices()
     set({ devices })
+
+    // A device that has been unplugged must not keep the audio pointed at
+    // nothing — the assistant would be silent. Fall back to the system
+    // default instead.
+    const settings = get().settings
+    if (!settings) return
+
+    const outputs = devices.outputs.map((d) => d.deviceId)
+    const chosen = settings.voice.outputDeviceId
+    if (chosen && chosen !== "default" && outputs.length && !outputs.includes(chosen)) {
+      await get().updateSettings({ voice: { ...settings.voice, outputDeviceId: "" } })
+      get().toast("The chosen speaker is not connected — using the default.", "info")
+    }
   },
 
   updateSettings: async (patch) => {

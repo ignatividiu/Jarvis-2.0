@@ -205,19 +205,22 @@ p {
    ========================================================================== */
 
 .app-shell {
-  --vis: 46%;
   --side: 230px;
+  --chat: 0.72fr;
+  --vis: 1.28fr;
   display: grid;
-  grid-template-columns: var(--side) minmax(320px, 1fr) minmax(280px, var(--vis));
+  grid-template-columns: var(--side) minmax(300px, var(--chat)) minmax(340px, var(--vis));
   height: 100vh;
   overflow: hidden;
 }
 
 .app-shell.vis-medium {
-  --vis: 36%;
+  --chat: 0.9fr;
+  --vis: 1.1fr;
 }
 .app-shell.vis-small {
-  --vis: 26%;
+  --chat: 1.12fr;
+  --vis: 0.88fr;
 }
 
 .app-shell.collapsed-sidebar {
@@ -243,7 +246,7 @@ p {
 
 /* With the chat on the right the two panels swap places. */
 .app-shell.chat-right {
-  grid-template-columns: var(--side) minmax(280px, var(--vis)) minmax(320px, 1fr);
+  grid-template-columns: var(--side) minmax(340px, var(--vis)) minmax(300px, var(--chat));
 }
 .app-shell.chat-right > .chat-column {
   grid-column: 3;

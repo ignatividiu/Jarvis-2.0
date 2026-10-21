@@ -25,6 +25,7 @@ export function VoiceDock({ onCommand }: { onCommand: (text: string) => void }):
   const voice = useVoice()
   const voiceStatus = useJarvis((s) => s.voice)
   const [menu, setMenu] = useState<"input" | "output" | null>(null)
+  const [testing, setTesting] = useState(false)
   const holdTimer = useRef<number | null>(null)
 
   const wakeWord = settings?.voice.wakeWord ?? "jarvis"
@@ -119,6 +120,21 @@ export function VoiceDock({ onCommand }: { onCommand: (text: string) => void }):
     if (text.trim()) onCommand(text.trim())
   }
 
+  /** Play a short phrase, so the voice can be checked straight away. */
+  const testVoice = async (): Promise<void> => {
+    setTesting(true)
+    try {
+      const played = await voiceSession.speak("All systems online. I am JARVIS, and I am at your service.")
+      if (!played) {
+        toast("Nothing was played. Check the speaker in Settings → Microphone & speaker.", "error")
+      }
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+    } finally {
+      setTesting(false)
+    }
+  }
+
   const chooseInput = async (deviceId: string): Promise<void> => {
     if (!settings) return
     await updateSettings({ voice: { ...settings.voice, inputDeviceId: deviceId } })
@@ -211,6 +227,18 @@ export function VoiceDock({ onCommand }: { onCommand: (text: string) => void }):
         </button>
 
         <div className="spacer" />
+
+        {/* A quick check that the voice can be heard. */}
+        <button
+          type="button"
+          className="tool-toggle"
+          onClick={() => void testVoice()}
+          disabled={testing}
+          title="Play a test phrase through the selected speaker"
+        >
+          <span className="material-symbols-outlined">volume_up</span>
+          {testing ? "Playing…" : "Test"}
+        </button>
 
         {/* Device pickers */}
         <div className="device-picker">

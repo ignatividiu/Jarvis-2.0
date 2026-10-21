@@ -3,11 +3,19 @@ import { audioEngine } from "../../audio/engine"
 import { useJarvis } from "../../state/store"
 import {
   createOrbParticles,
-  drawBars,
-  drawGrid,
+  drawAurora,
+  drawCore,
+  drawLissajous,
+  drawLattice,
   drawOrb,
-  drawReactor,
-  drawWaveform,
+  drawPeaks,
+  drawPetals,
+  drawRain,
+  drawScope,
+  drawSpectrum,
+  drawSpiral,
+  drawStar,
+  drawTunnel,
   type VisualizerMode
 } from "./visualizers"
 
@@ -74,17 +82,41 @@ export function JarvisVisualizer({ mode, accent, className }: Props): React.Reac
       }
 
       switch (mode) {
-        case "reactor":
-          drawReactor(visual)
+        case "core":
+          drawCore(visual)
           break
-        case "bars":
-          drawBars(visual)
+        case "tunnel":
+          drawTunnel(visual)
           break
-        case "waveform":
-          drawWaveform(visual)
+        case "star":
+          drawStar(visual)
           break
-        case "grid":
-          drawGrid(visual)
+        case "petals":
+          drawPetals(visual)
+          break
+        case "lissajous":
+          drawLissajous(visual)
+          break
+        case "scope":
+          drawScope(visual)
+          break
+        case "peaks":
+          drawPeaks(visual)
+          break
+        case "aurora":
+          drawAurora(visual)
+          break
+        case "lattice":
+          drawLattice(visual)
+          break
+        case "spiral":
+          drawSpiral(visual)
+          break
+        case "rain":
+          drawRain(visual)
+          break
+        case "spectrum":
+          drawSpectrum(visual)
           break
         case "orb":
         default:
