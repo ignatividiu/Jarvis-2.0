@@ -57,7 +57,7 @@ export const SPEECH_MODELS: SpeechModel[] = [
   }
 ]
 
-const DEFAULT_MODEL = "onnx-community/whisper-tiny.en"
+const DEFAULT_MODEL = "onnx-community/whisper-base"
 
 let cacheDir = ""
 let loaded: AutomaticSpeechRecognitionPipeline | null = null

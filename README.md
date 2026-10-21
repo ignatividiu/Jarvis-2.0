@@ -103,11 +103,11 @@ with the JARVIS-like voices marked. One click plays a test phrase through the re
 
 | Engine | Account | Internet | Notes |
 |---|---|---|---|
-| **Local Whisper** (default) | not needed | **not needed** | Runs through `transformers.js` on the ONNX runtime. Four model sizes from 42 MB to 900 MB. Your audio never leaves the machine. |
+| **Local recognition** (default) | not needed | **not needed** | Runs through `transformers.js` on the ONNX runtime. Four model sizes from 42 MB to 900 MB — the *Whisper Base* model is the default, because the tiny one mis-hears names in any noise and the trigger depends on hearing names correctly. Your audio never leaves the machine. |
 | **Browser recogniser** | not needed | needed | The Web Speech API. No download, but less dependable, and unavailable in some Electron builds. |
 
-Recognition is fast enough to be interactive: the *Whisper Tiny* model recognises a one-second
-phrase in roughly **160 ms** on a modern laptop.
+Recognition is fast enough to be interactive: the *Whisper Base* model recognises a one-second
+phrase in roughly **250 ms** on a modern laptop.
 
 ### Always-on and the trigger phrase
 
@@ -482,7 +482,7 @@ Everything is editable in the interface, and stored in `%APPDATA%/jarvis-2.0/jar
 | | `style` | — | An explicit expressive style, e.g. `calm` |
 | | `language` | `en-GB` | The accent of the generated speech |
 | | `rate` / `pitch` / `volume` | `1` | Delivery |
-| | `sttModel` | `whisper-tiny.en` | The recognition model |
+| | `sttModel` | `whisper-base` | The recognition model. *Base* is the default; *tiny* is faster but less accurate on names. |
 | | `alwaysOn` | `false` | Keep the microphone open |
 | | `wakeMode` | `wake-word` | `wake-word`, `open` or `off` |
 | | `wakeWord` | `Hey jarvis` | The trigger phrase. The leading filler is optional, so “Jarvis, what time is it” also works. |

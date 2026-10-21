@@ -40,7 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
     rate: 1,
     pitch: 1,
     volume: 1,
-    sttModel: "onnx-community/whisper-tiny.en",
+    sttModel: "onnx-community/whisper-base",
     alwaysOn: false,
     wakeMode: "wake-word",
     // The trigger is a phrase. The leading filler is optional, so
@@ -188,8 +188,15 @@ class ConfigStore {
       voice.wakeWord = "Hey jarvis"
       changed = true
     }
-    if (stored.voice?.wakeCue === undefined) {
+    if (voice.wakeCue === undefined) {
       voice.wakeCue = true
+      changed = true
+    }
+    // The tiny model was the weak link in the trigger: it mis-hears names in
+    // any noise, and the base model is far more accurate for the same
+    // fraction of a second.
+    if (voice.sttModel === "onnx-community/whisper-tiny.en") {
+      voice.sttModel = "onnx-community/whisper-base"
       changed = true
     }
     if (stored.ui?.chatSide === undefined) {
